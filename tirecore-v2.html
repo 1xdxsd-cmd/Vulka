@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>TireCore</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0f1e;
+  --card: #121929;
+  --card2: #1a2540;
+  --accent: #00cfff;
+  --orange: #ff7220;
+  --green: #00e87a;
+  --red: #ff3d5a;
+  --yellow: #ffc300;
+  --text: #f0f4ff;
+  --sub: #6b7fa3;
+  --border: rgba(0,207,255,0.12);
+  --radius: 18px;
+  --tab-h: 72px;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { height:100%; overflow:hidden; font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text); }
+
+/* SPLASH */
+#splash {
+  position:fixed; inset:0; background:var(--bg); z-index:999;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;
+  transition:opacity .5s, visibility .5s;
+}
+#splash.hide { opacity:0; visibility:hidden; }
+.splash-logo { font-family:'Orbitron',monospace; font-size:32px; font-weight:900; color:var(--accent); text-shadow:0 0 30px rgba(0,207,255,.5); }
+.splash-logo span { color:var(--orange); }
+.splash-sub { font-size:14px; color:var(--sub); letter-spacing:2px; }
+.splash-ring {
+  width:60px; height:60px; border-radius:50%;
+  border:3px solid rgba(0,207,255,.15); border-top-color:var(--accent);
+  animation:spin .8s linear infinite; margin-bottom:8px;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* APP SHELL */
+#app { height:100%; display:flex; flex-direction:column; }
+
+/* HEADER */
+.app-header {
+  flex-shrink:0;
+  padding:16px 20px 12px;
+  background:var(--bg);
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  position:relative; z-index:10;
+}
+.header-logo { font-family:'Orbitron',monospace; font-size:18px; font-weight:900; color:var(--accent); }
+.header-logo span { color:var(--orange); }
+.header-date { font-size:12px; color:var(--sub); font-weight:600; }
+
+/* PAGES */
+#pages { flex:1; overflow:hidden; position:relative; }
+.page {
+  position:absolute; inset:0; overflow-y:auto; overflow-x:hidden;
+  padding:16px 16px calc(var(--tab-h) + 16px);
+  display:none;
+  animation:pageIn .25s ease;
+  -webkit-overflow-scrolling:touch;
+}
+.page.active { display:block; }
+@keyframes pageIn { from{opacity:0;transform:translateX(16px)} to{opacity:1;transform:translateX(0)} }
+
+/* TAB BAR */
+.tab-bar {
+  flex-shrink:0; height:var(--tab-h);
+  background:var(--card);
+  border-top:1px solid var(--border);
+  display:flex; align-items:stretch;
+  position:relative; z-index:10;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.tab {
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+  background:none; border:none; cursor:pointer; color:var(--sub);
+  font-family:'Nunito',sans-serif; font-size:11px; font-weight:700;
+  transition:color .2s; padding:8px 4px; letter-spacing:.3px;
+}
+.tab .tab-icon { font-size:22px; transition:transform .2s; }
+.tab.active { color:var(--accent); }
+.tab.active .tab-icon { transform:scale(1.15); }
+.tab-indicator {
+  position:absolute; top:0; height:2px; background:var(--accent);
+  border-radius:0 0 4px 4px; transition:left .25s ease, width .25s ease;
+  box-shadow:0 0 10px var(--accent);
+}
+
+/* ── CARDS ── */
+.card {
+  background:var(--card); border-radius:var(--radius);
+  border:1px solid var(--border); overflow:hidden; margin-bottom:12px;
+}
+.card-pad { padding:18px; }
+
+/* ── HOME PAGE ── */
+.greeting { margin-bottom:20px; }
+.greeting h1 { font-size:22px; font-weight:900; }
+.greeting p { font-size:13px; color:var(--sub); margin-top:3px; }
+
+.quick-stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+.stat-box {
+  background:var(--card); border-radius:16px; border:1px solid var(--border);
+  padding:16px; position:relative; overflow:hidden;
+}
+.stat-box::after {
+  content:''; position:absolute; bottom:-20px; right:-10px;
+  font-size:56px; opacity:.06; line-height:1;
+}
+.stat-box.tires::after { content:'🛞'; }
+.stat-box.stock::after { content:'📦'; }
+.stat-box.ventas::after { content:'💸'; }
+.stat-box.ganancia::after { content:'💰'; }
+.stat-box-label { font-size:11px; font-weight:700; color:var(--sub); letter-spacing:.5px; text-transform:uppercase; margin-bottom:6px; }
+.stat-box-val { font-family:'Orbitron',monospace; font-size:26px; font-weight:900; }
+.stat-box-val.blue { color:var(--accent); }
+.stat-box-val.orange { color:var(--orange); }
+.stat-box-val.green { color:var(--green); }
+.stat-box-val.yellow { color:var(--yellow); }
+.stat-box-sub { font-size:11px; color:var(--sub); margin-top:3px; }
+
+.section-label {
+  font-size:13px; font-weight:800; color:var(--sub);
+  text-transform:uppercase; letter-spacing:1px;
+  margin-bottom:10px; margin-top:4px;
+}
+
+/* Big Action Buttons */
+.big-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+.big-btn {
+  border:none; border-radius:16px; padding:18px 14px;
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  cursor:pointer; font-family:'Nunito',sans-serif; font-weight:800;
+  font-size:14px; letter-spacing:.2px; transition:transform .15s, box-shadow .15s;
+  active:scale(.97);
+}
+.big-btn:active { transform:scale(.96); }
+.big-btn .btn-icon { font-size:28px; }
+.big-btn.add { background:linear-gradient(135deg,#0077a8,#00cfff); color:white; box-shadow:0 8px 24px rgba(0,207,255,.25); }
+.big-btn.sell { background:linear-gradient(135deg,#c04a00,#ff7220); color:white; box-shadow:0 8px 24px rgba(255,114,32,.25); }
+.big-btn.buy { background:linear-gradient(135deg,#007a40,#00e87a); color:#0a1a12; box-shadow:0 8px 24px rgba(0,232,122,.2); }
+.big-btn.map { background:linear-gradient(135deg,#1a1060,#5b3fff); color:white; box-shadow:0 8px 24px rgba(91,63,255,.25); }
+
+/* Alert strip */
+.alert-strip {
+  border-radius:12px; padding:12px 16px; margin-bottom:10px;
+  display:flex; align-items:center; gap:10px; font-size:13px; font-weight:700;
+}
+.alert-strip.warn { background:rgba(255,195,0,.1); border:1px solid rgba(255,195,0,.2); color:var(--yellow); }
+.alert-strip.danger { background:rgba(255,61,90,.1); border:1px solid rgba(255,61,90,.2); color:var(--red); }
+
+/* Recent tx mini */
+.tx-mini {
+  display:flex; align-items:center; gap:12px; padding:12px 0;
+  border-bottom:1px solid var(--border);
+}
+.tx-mini:last-child { border-bottom:none; padding-bottom:0; }
+.tx-mini-icon { width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.tx-mini-icon.sell { background:rgba(255,114,32,.15); }
+.tx-mini-icon.buy { background:rgba(0,232,122,.12); }
+.tx-mini-info { flex:1; min-width:0; }
+.tx-mini-name { font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tx-mini-date { font-size:11px; color:var(--sub); margin-top:2px; }
+.tx-mini-amt { font-family:'Orbitron',monospace; font-size:13px; font-weight:700; white-space:nowrap; }
+.tx-mini-amt.in { color:var(--green); }
+.tx-mini-amt.out { color:var(--orange); }
+
+/* ── INVENTORY PAGE ── */
+.inv-search {
+  display:flex; align-items:center; gap:10px;
+  background:var(--card); border:1px solid var(--border); border-radius:14px;
+  padding:12px 16px; margin-bottom:14px;
+}
+.inv-search input {
+  background:none; border:none; outline:none; flex:1;
+  font-family:'Nunito',sans-serif; font-size:15px; color:var(--text);
+}
+.inv-search input::placeholder { color:var(--sub); }
+
+.tire-card {
+  background:var(--card); border-radius:16px; border:1px solid var(--border);
+  padding:16px; margin-bottom:10px; cursor:pointer;
+  transition:transform .15s, border-color .15s;
+  display:flex; gap:14px; align-items:center;
+}
+.tire-card:active { transform:scale(.98); }
+.tire-card-icon {
+  width:52px; height:52px; border-radius:14px; background:var(--card2);
+  display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0;
+}
+.tire-card-body { flex:1; min-width:0; }
+.tire-card-title { font-size:16px; font-weight:800; }
+.tire-card-sub { font-size:12px; color:var(--sub); margin-top:2px; }
+.tire-card-meta { display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap; }
+.chip {
+  padding:4px 10px; border-radius:20px; font-size:11px; font-weight:800; letter-spacing:.3px;
+  display:inline-flex; align-items:center; gap:4px;
+}
+.chip.green { background:rgba(0,232,122,.12); color:var(--green); }
+.chip.yellow { background:rgba(255,195,0,.12); color:var(--yellow); }
+.chip.red { background:rgba(255,61,90,.12); color:var(--red); }
+.chip.blue { background:rgba(0,207,255,.1); color:var(--accent); }
+.chip.gray { background:rgba(107,127,163,.12); color:var(--sub); }
+.tire-card-stock { text-align:right; flex-shrink:0; }
+.stock-num { font-family:'Orbitron',monospace; font-size:24px; font-weight:900; }
+.stock-label { font-size:10px; color:var(--sub); font-weight:700; letter-spacing:.5px; }
+
+/* ── DETAIL SHEET ── */
+.sheet-overlay {
+  position:fixed; inset:0; background:rgba(5,8,20,.7); z-index:100;
+  display:none; align-items:flex-end; justify-content:center;
+  backdrop-filter:blur(4px);
+}
+.sheet-overlay.open { display:flex; }
+.sheet {
+  background:var(--card); border-radius:24px 24px 0 0;
+  width:100%; max-width:520px; max-height:92vh; overflow-y:auto;
+  padding:0 0 env(safe-area-inset-bottom);
+  animation:sheetUp .3s cubic-bezier(.32,1.2,.5,1);
+  -webkit-overflow-scrolling:touch;
+}
+@keyframes sheetUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+.sheet-handle {
+  width:40px; height:4px; background:var(--card2); border-radius:2px;
+  margin:12px auto 0;
+}
+.sheet-header { padding:16px 20px 0; display:flex; align-items:center; justify-content:space-between; }
+.sheet-title { font-size:18px; font-weight:900; }
+.sheet-close {
+  width:32px; height:32px; border-radius:50%; background:var(--card2);
+  border:none; cursor:pointer; color:var(--sub); font-size:18px;
+  display:flex; align-items:center; justify-content:center; transition:background .2s;
+}
+.sheet-close:hover { background:rgba(255,61,90,.15); color:var(--red); }
+.sheet-body { padding:16px 20px 24px; }
+
+/* Detail rows */
+.detail-row {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 0; border-bottom:1px solid var(--border);
+}
+.detail-row:last-child { border-bottom:none; }
+.detail-row-label { font-size:13px; color:var(--sub); font-weight:700; }
+.detail-row-val { font-size:15px; font-weight:800; }
+.detail-row-val.mono { font-family:'Orbitron',monospace; font-size:14px; }
+
+.sheet-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:20px; }
+.action-btn {
+  border:none; border-radius:14px; padding:16px; cursor:pointer;
+  font-family:'Nunito',sans-serif; font-size:15px; font-weight:800;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  transition:transform .15s;
+}
+.action-btn:active { transform:scale(.97); }
+.action-btn.primary { background:var(--orange); color:white; }
+.action-btn.secondary { background:var(--card2); color:var(--text); }
+.action-btn.danger { background:rgba(255,61,90,.15); color:var(--red); border:1px solid rgba(255,61,90,.2); }
+.action-btn.success { background:rgba(0,232,122,.12); color:var(--green); border:1px solid rgba(0,232,122,.2); }
+
+/* ── FORM SHEET ── */
+.form-label { font-size:12px; font-weight:800; color:var(--sub); letter-spacing:.5px; text-transform:uppercase; margin-bottom:6px; }
+.form-input {
+  width:100%; background:var(--card2); border:1.5px solid var(--border); border-radius:12px;
+  padding:14px 16px; font-family:'Nunito',sans-serif; font-size:16px; color:var(--text);
+  outline:none; transition:border-color .2s; margin-bottom:14px;
+  -webkit-appearance:none;
+}
+.form-input:focus { border-color:var(--accent); }
+.form-input::placeholder { color:var(--sub); }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.form-row .form-input { margin-bottom:0; }
+.form-row-wrap { margin-bottom:14px; }
+
+.submit-btn {
+  width:100%; border:none; border-radius:14px; padding:18px;
+  font-family:'Nunito',sans-serif; font-size:17px; font-weight:900;
+  cursor:pointer; transition:transform .15s, box-shadow .15s;
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  margin-top:8px;
+}
+.submit-btn:active { transform:scale(.98); }
+.submit-btn.blue { background:linear-gradient(135deg,#0077a8,#00cfff); color:white; box-shadow:0 8px 24px rgba(0,207,255,.3); }
+.submit-btn.orange { background:linear-gradient(135deg,#c04a00,#ff7220); color:white; box-shadow:0 8px 24px rgba(255,114,32,.3); }
+.submit-btn.green { background:linear-gradient(135deg,#007a40,#00e87a); color:#0a1a12; box-shadow:0 8px 24px rgba(0,232,122,.25); }
+
+/* ── MAP PAGE ── */
+.map-warehouse {
+  background:var(--card); border-radius:var(--radius); border:1px solid var(--border);
+  padding:16px; margin-bottom:14px; position:relative; overflow:hidden;
+  height:320px;
+}
+.wh-bg {
+  position:absolute; inset:0;
+  background-image:
+    linear-gradient(rgba(0,207,255,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,207,255,.04) 1px, transparent 1px);
+  background-size:28px 28px;
+}
+.wh-zone {
+  position:absolute; border:1.5px dashed rgba(0,207,255,.15); border-radius:10px;
+  display:flex; align-items:flex-start; padding:8px;
+}
+.wh-zone-label {
+  font-family:'Orbitron',monospace; font-size:9px; color:rgba(0,207,255,.35); letter-spacing:1px;
+}
+.wh-pin {
+  position:absolute; transform:translate(-50%,-50%); cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  transition:transform .2s;
+  z-index:5;
+}
+.wh-pin:active { transform:translate(-50%,-50%) scale(1.25); }
+.wh-pin-bubble {
+  width:40px; height:40px; border-radius:50%; border:2.5px solid;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Orbitron',monospace; font-size:11px; font-weight:700;
+  box-shadow:0 0 16px currentColor;
+  animation:pinPulse 2.5s ease-in-out infinite;
+}
+@keyframes pinPulse { 0%,100%{box-shadow:0 0 8px currentColor} 50%{box-shadow:0 0 22px currentColor, 0 0 40px currentColor} }
+.wh-pin-label {
+  font-size:9px; font-weight:800; white-space:nowrap;
+  background:var(--card); padding:2px 6px; border-radius:4px; color:var(--sub);
+}
+.map-search-bar {
+  display:flex; gap:8px; align-items:center; margin-bottom:14px;
+}
+.map-search-bar input {
+  flex:1; background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:12px 16px; font-family:'Nunito',sans-serif; font-size:15px; color:var(--text); outline:none;
+}
+.map-search-bar input:focus { border-color:var(--accent); }
+.map-search-bar input::placeholder { color:var(--sub); }
+
+.loc-list-item {
+  background:var(--card); border-radius:14px; border:1px solid var(--border);
+  padding:14px 16px; margin-bottom:8px; cursor:pointer;
+  display:flex; align-items:center; gap:14px;
+  transition:transform .15s; active:scale(.98);
+}
+.loc-list-item:active { transform:scale(.98); }
+.loc-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+.loc-info { flex:1; min-width:0; }
+.loc-name { font-size:15px; font-weight:800; }
+.loc-sub { font-size:12px; color:var(--sub); margin-top:2px; }
+.loc-count { font-family:'Orbitron',monospace; font-size:20px; font-weight:900; color:var(--accent); }
+
+/* ── TOAST ── */
+.toast {
+  position:fixed; bottom:calc(var(--tab-h) + 16px); left:50%; transform:translateX(-50%) translateY(20px);
+  background:var(--card2); border:1px solid var(--border); border-radius:14px;
+  padding:14px 20px; font-size:14px; font-weight:700; white-space:nowrap;
+  z-index:500; opacity:0; transition:opacity .2s, transform .2s;
+  display:flex; align-items:center; gap:8px; box-shadow:0 8px 32px rgba(0,0,0,.4);
+}
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+.toast.success { border-color:rgba(0,232,122,.3); color:var(--green); }
+.toast.error { border-color:rgba(255,61,90,.3); color:var(--red); }
+
+/* EMPTY */
+.empty { text-align:center; padding:48px 20px; color:var(--sub); }
+.empty .e-icon { font-size:48px; margin-bottom:12px; opacity:.4; }
+.empty p { font-size:14px; font-weight:600; }
+
+/* scrollbar hide */
+.page::-webkit-scrollbar { display:none; }
+.sheet::-webkit-scrollbar { display:none; }
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-ring"></div>
+  <div class="splash-logo">TIRE<span>CORE</span></div>
+  <div class="splash-sub">INVENTARIO DE LLANTAS</div>
+</div>
+
+<div id="app">
+  <!-- HEADER -->
+  <div class="app-header">
+    <div class="header-logo">TIRE<span>CORE</span></div>
+    <div class="header-date" id="hdr-date"></div>
+  </div>
+
+  <!-- PAGES -->
+  <div id="pages">
+
+    <!-- HOME -->
+    <div class="page active" id="page-home">
+      <div class="greeting">
+        <h1 id="greeting-text">Buenos días 👋</h1>
+        <p>Aquí está el resumen de hoy</p>
+      </div>
+
+      <!-- Alerts -->
+      <div id="home-alerts"></div>
+
+      <!-- Stats -->
+      <div class="quick-stats">
+        <div class="stat-box tires">
+          <div class="stat-box-label">Modelos</div>
+          <div class="stat-box-val blue" id="s-models">0</div>
+          <div class="stat-box-sub">en inventario</div>
+        </div>
+        <div class="stat-box stock">
+          <div class="stat-box-label">Total Piezas</div>
+          <div class="stat-box-val orange" id="s-units">0</div>
+          <div class="stat-box-sub">unidades</div>
+        </div>
+        <div class="stat-box ventas">
+          <div class="stat-box-label">Ventas</div>
+          <div class="stat-box-val green" id="s-sales">$0</div>
+          <div class="stat-box-sub" id="s-sales-count">0 operaciones</div>
+        </div>
+        <div class="stat-box ganancia">
+          <div class="stat-box-label">Ganancia</div>
+          <div class="stat-box-val yellow" id="s-profit">$0</div>
+          <div class="stat-box-sub">estimada</div>
+        </div>
+      </div>
+
+      <!-- Quick actions -->
+      <div class="section-label">Acciones rápidas</div>
+      <div class="big-actions">
+        <button class="big-btn add" onclick="openSheet('sheet-add')">
+          <span class="btn-icon">➕</span>
+          Agregar Llanta
+        </button>
+        <button class="big-btn sell" onclick="openSheet('sheet-sell')">
+          <span class="btn-icon">💸</span>
+          Registrar Venta
+        </button>
+        <button class="big-btn buy" onclick="openSheet('sheet-buy')">
+          <span class="btn-icon">📦</span>
+          Registrar Compra
+        </button>
+        <button class="big-btn map" onclick="goTab('map')">
+          <span class="btn-icon">📍</span>
+          Ver Mapa
+        </button>
+      </div>
+
+      <!-- Recent -->
+      <div class="section-label">Últimas operaciones</div>
+      <div class="card card-pad" id="recent-home">
+        <div class="empty"><div class="e-icon">📋</div><p>Aún no hay operaciones</p></div>
+      </div>
+    </div>
+
+    <!-- INVENTORY -->
+    <div class="page" id="page-inv">
+      <div class="inv-search">
+        <span style="font-size:18px">🔍</span>
+        <input type="text" placeholder="Buscar por marca, medida..." id="inv-search" oninput="renderInv()">
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+        <button class="action-btn primary" style="padding:12px 20px;font-size:14px;border-radius:12px" onclick="openSheet('sheet-add')">
+          ➕ Nueva Llanta
+        </button>
+      </div>
+      <div id="inv-list"></div>
+    </div>
+
+    <!-- MAP -->
+    <div class="page" id="page-map">
+      <div class="map-search-bar">
+        <input type="text" id="map-search" placeholder="Buscar zona o llanta..." oninput="renderMap()">
+        <button class="action-btn secondary" style="padding:12px 14px;border-radius:12px;font-size:13px" onclick="document.getElementById('map-search').value='';renderMap()">✕</button>
+      </div>
+      <!-- Warehouse visual -->
+      <div class="map-warehouse" id="wh-map">
+        <div class="wh-bg"></div>
+        <!-- Zones drawn by JS -->
+      </div>
+      <div class="section-label">Zonas del Almacén</div>
+      <div id="loc-list"></div>
+    </div>
+
+  </div><!-- /pages -->
+
+  <!-- TAB BAR -->
+  <div class="tab-bar">
+    <div class="tab-indicator" id="tab-ind"></div>
+    <button class="tab active" id="tab-home" onclick="goTab('home')">
+      <span class="tab-icon">🏠</span>
+      Inicio
+    </button>
+    <button class="tab" id="tab-inv" onclick="goTab('inv')">
+      <span class="tab-icon">🛞</span>
+      Llantas
+    </button>
+    <button class="tab" id="tab-map" onclick="goTab('map')">
+      <span class="tab-icon">📍</span>
+      Mapa
+    </button>
+  </div>
+</div><!-- /app -->
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════ SHEETS ═══════════════ -->
+
+<!-- ADD TIRE SHEET -->
+<div class="sheet-overlay" id="sheet-add">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title">➕ Nueva Llanta</div>
+      <button class="sheet-close" onclick="closeSheet('sheet-add')">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="form-label">Marca</div>
+      <input class="form-input" id="a-brand" type="text" placeholder="Ej: Bridgestone, Michelin...">
+
+      <div class="form-label">Modelo</div>
+      <input class="form-input" id="a-model" type="text" placeholder="Ej: Turanza T001">
+
+      <div class="form-label">Medida</div>
+      <input class="form-input" id="a-size" type="text" placeholder="Ej: 205/55R16">
+
+      <div class="form-label">Tipo</div>
+      <select class="form-input" id="a-type">
+        <option value="Turismo">🚗 Turismo</option>
+        <option value="SUV">🚙 SUV / 4x4</option>
+        <option value="Pickup">🛻 Pickup</option>
+        <option value="Deporte">🏎️ Deporte</option>
+        <option value="Camión">🚚 Camión</option>
+        <option value="Moto">🏍️ Moto</option>
+      </select>
+
+      <div class="form-label">Cantidad inicial en stock</div>
+      <input class="form-input" id="a-stock" type="number" min="0" value="0" placeholder="0">
+
+      <div class="form-label">Costo de compra ($)</div>
+      <input class="form-input" id="a-cost" type="number" min="0" step="0.01" placeholder="0.00">
+
+      <div class="form-label">Precio de venta ($)</div>
+      <input class="form-input" id="a-price" type="number" min="0" step="0.01" placeholder="0.00">
+
+      <div class="form-label">Ubicación en el almacén</div>
+      <select class="form-input" id="a-loc">
+        <option value="Zona A">Zona A — Estantes principales</option>
+        <option value="Zona B">Zona B — Estantes secundarios</option>
+        <option value="Zona C">Zona C — Piso central</option>
+        <option value="Zona D">Zona D — Exterior</option>
+        <option value="Bodega">Bodega — Almacén trasero</option>
+      </select>
+
+      <button class="submit-btn blue" onclick="doAddTire()">
+        ✅ Guardar Llanta
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- SELL SHEET -->
+<div class="sheet-overlay" id="sheet-sell">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title">💸 Registrar Venta</div>
+      <button class="sheet-close" onclick="closeSheet('sheet-sell')">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="form-label">¿Qué llanta vendiste?</div>
+      <select class="form-input" id="sl-tire" onchange="fillSellPrice()"></select>
+
+      <div class="form-label">¿Cuántas vendiste?</div>
+      <input class="form-input" id="sl-qty" type="number" min="1" value="1">
+
+      <div class="form-label">Precio de venta ($)</div>
+      <input class="form-input" id="sl-price" type="number" step="0.01" placeholder="0.00">
+
+      <div class="form-label">Nombre del cliente (opcional)</div>
+      <input class="form-input" id="sl-client" type="text" placeholder="Ej: Juan Pérez">
+
+      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:14px" id="sell-preview"></div>
+
+      <button class="submit-btn orange" onclick="doSell()">
+        💸 Confirmar Venta
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- BUY SHEET -->
+<div class="sheet-overlay" id="sheet-buy">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title">📦 Registrar Compra</div>
+      <button class="sheet-close" onclick="closeSheet('sheet-buy')">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="form-label">¿Qué llanta compraste?</div>
+      <select class="form-input" id="by-tire"></select>
+
+      <div class="form-label">¿Cuántas compraste?</div>
+      <input class="form-input" id="by-qty" type="number" min="1" value="1">
+
+      <div class="form-label">Costo unitario ($)</div>
+      <input class="form-input" id="by-cost" type="number" step="0.01" placeholder="0.00">
+
+      <div class="form-label">Proveedor (opcional)</div>
+      <input class="form-input" id="by-supplier" type="text" placeholder="Nombre del proveedor">
+
+      <button class="submit-btn green" onclick="doBuy()">
+        📦 Confirmar Compra
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL SHEET -->
+<div class="sheet-overlay" id="sheet-detail">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title" id="det-title">Detalle</div>
+      <button class="sheet-close" onclick="closeSheet('sheet-detail')">✕</button>
+    </div>
+    <div class="sheet-body" id="det-body"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════ DATA ══════════════
+let tires = JSON.parse(localStorage.getItem('tc2_tires') || '[]');
+let txs   = JSON.parse(localStorage.getItem('tc2_txs')   || '[]');
+let uid   = parseInt(localStorage.getItem('tc2_uid')     || '1');
+let activeTab = 'home';
+let detailId = null;
+
+function persist() {
+  localStorage.setItem('tc2_tires', JSON.stringify(tires));
+  localStorage.setItem('tc2_txs',   JSON.stringify(txs));
+  localStorage.setItem('tc2_uid',   uid);
+}
+
+// ══════════════ SEED ══════════════
+function seed() {
+  if (tires.length) return;
+  const demo = [
+    {brand:'Bridgestone',model:'Turanza T001',size:'205/55R16',type:'Turismo',stock:8,minStock:3,cost:80,price:130,loc:'Zona A'},
+    {brand:'Michelin',model:'Pilot Sport 4',size:'225/45R17',type:'Deporte',stock:2,minStock:3,cost:150,price:220,loc:'Zona A'},
+    {brand:'Continental',model:'CrossContact',size:'265/70R16',type:'SUV',stock:5,minStock:2,cost:110,price:170,loc:'Zona B'},
+    {brand:'Pirelli',model:'Scorpion Verde',size:'235/60R18',type:'SUV',stock:0,minStock:2,cost:140,price:200,loc:'Zona B'},
+    {brand:'Goodyear',model:'Wrangler AT',size:'245/75R16',type:'Pickup',stock:6,minStock:2,cost:90,price:145,loc:'Zona C'},
+    {brand:'Hankook',model:'Ventus S1',size:'215/55R17',type:'Turismo',stock:10,minStock:4,cost:65,price:100,loc:'Bodega'},
+    {brand:'Yokohama',model:'Geolandar',size:'275/65R17',type:'SUV',stock:1,minStock:2,cost:120,price:185,loc:'Zona D'},
+  ];
+  demo.forEach(d => { tires.push({id:`TC${String(uid).padStart(3,'0')}`, ...d, at:new Date().toISOString()}); uid++; });
+  const now = Date.now();
+  txs = [
+    {id:'T001',type:'buy',tid:'TC001',name:'Bridgestone Turanza T001',qty:8,unit:80,total:640,party:'Proveedor MX',at:new Date(now-86400000*4).toISOString()},
+    {id:'T002',type:'sell',tid:'TC002',name:'Michelin Pilot Sport 4',qty:1,unit:220,total:220,party:'Carlos G.',at:new Date(now-86400000*3).toISOString()},
+    {id:'T003',type:'sell',tid:'TC005',name:'Goodyear Wrangler AT',qty:2,unit:145,total:290,party:'Roberto S.',at:new Date(now-86400000*1).toISOString()},
+    {id:'T004',type:'sell',tid:'TC006',name:'Hankook Ventus S1',qty:3,unit:100,total:300,party:'AutoService',at:new Date(now-3600000).toISOString()},
+  ];
+  persist();
+}
+
+// ══════════════ TABS ══════════════
+function goTab(name) {
+  activeTab = name;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  document.getElementById(`tab-${name}`).classList.add('active');
+  // indicator
+  const tabs = ['home','inv','map'];
+  const idx = tabs.indexOf(name);
+  const total = tabs.length;
+  const ind = document.getElementById('tab-ind');
+  const w = 100 / total;
+  ind.style.width = w + '%';
+  ind.style.left = (idx * w) + '%';
+  // render
+  if (name === 'home') renderHome();
+  if (name === 'inv') renderInv();
+  if (name === 'map') renderMap();
+}
+
+// ══════════════ SHEETS ══════════════
+function openSheet(id) {
+  if (id === 'sheet-sell' || id === 'sheet-buy') populateTireSelects();
+  if (id === 'sheet-sell') { fillSellPrice(); updateSellPreview(); }
+  document.getElementById(id).classList.add('open');
+}
+function closeSheet(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.sheet-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+});
+
+// ══════════════ HOME ══════════════
+function renderHome() {
+  // greeting
+  const h = new Date().getHours();
+  const g = h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
+  document.getElementById('greeting-text').textContent = `${g} 👋`;
+  document.getElementById('hdr-date').textContent = new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'short'});
+
+  // stats
+  const units = tires.reduce((s,t)=>s+t.stock,0);
+  const sells = txs.filter(t=>t.type==='sell');
+  const revenue = sells.reduce((s,t)=>s+t.total,0);
+  const buys = txs.filter(t=>t.type==='buy');
+  const spent = buys.reduce((s,t)=>s+t.total,0);
+  const profit = revenue - spent;
+  document.getElementById('s-models').textContent = tires.length;
+  document.getElementById('s-units').textContent = units;
+  document.getElementById('s-sales').textContent = '$' + revenue.toLocaleString();
+  document.getElementById('s-sales-count').textContent = sells.length + ' operaciones';
+  document.getElementById('s-profit').textContent = (profit>=0?'+':'') + '$' + profit.toLocaleString();
+  document.getElementById('s-profit').style.color = profit >= 0 ? 'var(--green)' : 'var(--red)';
+
+  // alerts
+  const out = tires.filter(t=>t.stock===0);
+  const low = tires.filter(t=>t.stock>0&&t.stock<=t.minStock);
+  let alerts = '';
+  if (out.length) alerts += `<div class="alert-strip danger">🚨 ${out.length} llanta${out.length>1?'s':''} AGOTADA${out.length>1?'S':''}: ${out.map(t=>t.brand).join(', ')}</div>`;
+  if (low.length) alerts += `<div class="alert-strip warn">⚠️ ${low.length} llanta${low.length>1?'s':''} con POCO STOCK: ${low.map(t=>t.brand).join(', ')}</div>`;
+  document.getElementById('home-alerts').innerHTML = alerts;
+
+  // recent
+  const recent = [...txs].reverse().slice(0,5);
+  if (!recent.length) {
+    document.getElementById('recent-home').innerHTML = '<div class="empty"><div class="e-icon">📋</div><p>Aún no hay operaciones</p></div>';
+    return;
+  }
+  document.getElementById('recent-home').innerHTML = recent.map(tx => {
+    const d = new Date(tx.at);
+    const dateStr = d.toLocaleDateString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    return `<div class="tx-mini">
+      <div class="tx-mini-icon ${tx.type}">${tx.type==='sell'?'💸':'📦'}</div>
+      <div class="tx-mini-info">
+        <div class="tx-mini-name">${tx.name}</div>
+        <div class="tx-mini-date">${dateStr} · ${tx.party||'—'}</div>
+      </div>
+      <div>
+        <div class="tx-mini-amt ${tx.type==='sell'?'in':'out'}">${tx.type==='sell'?'+':'-'}$${tx.total.toLocaleString()}</div>
+        <div style="font-size:10px;color:var(--sub);text-align:right;margin-top:2px">${tx.qty} und</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════ INVENTORY ══════════════
+function renderInv() {
+  const q = (document.getElementById('inv-search')?.value || '').toLowerCase();
+  const filtered = tires.filter(t =>
+    !q || t.brand.toLowerCase().includes(q) || t.model.toLowerCase().includes(q) ||
+    t.size.toLowerCase().includes(q) || t.loc.toLowerCase().includes(q)
+  );
+  if (!filtered.length) {
+    document.getElementById('inv-list').innerHTML = `<div class="empty"><div class="e-icon">🔍</div><p>${q?'Sin resultados':'Agrega tu primera llanta'}</p></div>`;
+    return;
+  }
+  document.getElementById('inv-list').innerHTML = filtered.map(t => {
+    const status = t.stock===0 ? ['red','Agotado'] : t.stock<=t.minStock ? ['yellow','Poco stock'] : ['green','En stock'];
+    const margin = t.cost>0 ? Math.round(((t.price-t.cost)/t.cost)*100) : 0;
+    const icons = {Turismo:'🚗',SUV:'🚙',Pickup:'🛻',Deporte:'🏎️',Camión:'🚚',Moto:'🏍️'};
+    return `<div class="tire-card" onclick="showDetail('${t.id}')">
+      <div class="tire-card-icon">${icons[t.type]||'🛞'}</div>
+      <div class="tire-card-body">
+        <div class="tire-card-title">${t.brand} ${t.model}</div>
+        <div class="tire-card-sub">${t.size} · ${t.loc}</div>
+        <div class="tire-card-meta">
+          <span class="chip ${status[0]}">● ${status[1]}</span>
+          <span class="chip blue">$${t.price}</span>
+          <span class="chip gray">+${margin}% margen</span>
+        </div>
+      </div>
+      <div class="tire-card-stock">
+        <div class="stock-num" style="color:${t.stock===0?'var(--red)':t.stock<=t.minStock?'var(--yellow)':'var(--accent)'}">${t.stock}</div>
+        <div class="stock-label">UNIDD</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════ MAP ══════════════
+const LOC_COORDS = {
+  'Zona A': {x:15,y:15,w:33,h:38,px:31,py:34,color:'var(--accent)'},
+  'Zona B': {x:52,y:15,w:33,h:38,px:68,py:34,color:'var(--accent3,#5b3fff)'},
+  'Zona C': {x:15,y:60,w:33,h:32,px:31,py:76,color:'var(--orange)'},
+  'Zona D': {x:52,y:60,w:18,h:32,px:61,py:76,color:'var(--yellow)'},
+  'Bodega': {x:74,y:60,w:11,h:32,px:79,py:76,color:'var(--red)'},
+};
+const ACCENT3 = '#5b3fff';
+
+function renderMap() {
+  const q = (document.getElementById('map-search')?.value || '').toLowerCase();
+  const wh = document.getElementById('wh-map');
+  // clear pins & zones
+  wh.querySelectorAll('.wh-zone,.wh-pin').forEach(e=>e.remove());
+
+  const byLoc = {};
+  tires.forEach(t => { if(!byLoc[t.loc]) byLoc[t.loc]=[]; byLoc[t.loc].push(t); });
+
+  Object.entries(LOC_COORDS).forEach(([loc,c]) => {
+    // Zone box
+    const zone = document.createElement('div');
+    zone.className = 'wh-zone';
+    zone.style.cssText = `left:${c.x}%;top:${c.y}%;width:${c.w}%;height:${c.h}%`;
+    const lbl = document.createElement('div');
+    lbl.className = 'wh-zone-label';
+    lbl.textContent = loc.toUpperCase();
+    zone.appendChild(lbl);
+    wh.appendChild(zone);
+
+    const locTires = byLoc[loc] || [];
+    if (!locTires.length) return;
+    if (q && !loc.toLowerCase().includes(q) && !locTires.some(t=>t.brand.toLowerCase().includes(q)||t.model.toLowerCase().includes(q))) return;
+
+    const total = locTires.reduce((s,t)=>s+t.stock,0);
+    const hasOut = locTires.some(t=>t.stock===0);
+    const hasLow = locTires.some(t=>t.stock>0&&t.stock<=t.minStock);
+    const pinColor = hasOut ? 'var(--red)' : hasLow ? 'var(--yellow)' : 'var(--green)';
+    const colorStr = hasOut ? '#ff3d5a' : hasLow ? '#ffc300' : '#00e87a';
+
+    const pin = document.createElement('div');
+    pin.className = 'wh-pin';
+    pin.style.cssText = `left:${c.px}%;top:${c.py}%`;
+    pin.onclick = () => focusLocation(loc);
+    pin.innerHTML = `
+      <div class="wh-pin-bubble" style="color:${colorStr};border-color:${colorStr};background:${colorStr}22">${total}</div>
+      <div class="wh-pin-label">${loc}</div>
+    `;
+    wh.appendChild(pin);
+  });
+
+  // Location list
+  const locItems = Object.entries(byLoc).filter(([loc, lt]) => {
+    if (!q) return true;
+    return loc.toLowerCase().includes(q) || lt.some(t=>t.brand.toLowerCase().includes(q)||t.model.toLowerCase().includes(q));
+  });
+
+  document.getElementById('loc-list').innerHTML = locItems.map(([loc, lt]) => {
+    const total = lt.reduce((s,t)=>s+t.stock,0);
+    const hasOut = lt.some(t=>t.stock===0);
+    const hasLow = lt.some(t=>t.stock>0&&t.stock<=t.minStock);
+    const dotColor = hasOut ? '#ff3d5a' : hasLow ? '#ffc300' : '#00e87a';
+    return `<div class="loc-list-item" onclick="focusLocation('${loc}')">
+      <div class="loc-dot" style="background:${dotColor};box-shadow:0 0 8px ${dotColor}"></div>
+      <div class="loc-info">
+        <div class="loc-name">${loc}</div>
+        <div class="loc-sub">${lt.map(t=>`${t.brand} ${t.model}`).join(' · ')}</div>
+      </div>
+      <div class="loc-count">${total}</div>
+    </div>`;
+  }).join('') || '<div class="empty"><p>Sin resultados</p></div>';
+}
+
+function focusLocation(loc) {
+  document.getElementById('map-search').value = loc;
+  renderMap();
+  toast(`📍 ${loc}`, 'success');
+}
+
+// ══════════════ DETAIL ══════════════
+function showDetail(id) {
+  const t = tires.find(x=>x.id===id);
+  if (!t) return;
+  detailId = id;
+  const status = t.stock===0 ? ['red','Agotado'] : t.stock<=t.minStock ? ['yellow','Poco stock'] : ['green','En stock'];
+  const margin = t.cost>0 ? Math.round(((t.price-t.cost)/t.cost)*100) : 0;
+  const icons = {Turismo:'🚗',SUV:'🚙',Pickup:'🛻',Deporte:'🏎️',Camión:'🚚',Moto:'🏍️'};
+  document.getElementById('det-title').textContent = `${icons[t.type]||'🛞'} ${t.brand}`;
+  document.getElementById('det-body').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <div style="font-size:28px;font-weight:900">${t.brand} ${t.model}</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <span class="chip ${status[0]}">● ${status[1]}</span>
+      <span class="chip blue">${t.size}</span>
+      <span class="chip gray">${t.type}</span>
+    </div>
+    <div class="detail-row">
+      <div class="detail-row-label">📦 Stock actual</div>
+      <div class="detail-row-val mono" style="font-size:22px;color:${t.stock===0?'var(--red)':t.stock<=t.minStock?'var(--yellow)':'var(--accent)'}">${t.stock} uds</div>
+    </div>
+    <div class="detail-row">
+      <div class="detail-row-label">⚠️ Alerta stock bajo</div>
+      <div class="detail-row-val">${t.minStock} uds</div>
+    </div>
+    <div class="detail-row">
+      <div class="detail-row-label">💵 Costo de compra</div>
+      <div class="detail-row-val">$${t.cost}</div>
+    </div>
+    <div class="detail-row">
+      <div class="detail-row-label">💸 Precio de venta</div>
+      <div class="detail-row-val" style="color:var(--green)">$${t.price}</div>
+    </div>
+    <div class="detail-row">
+      <div class="detail-row-label">📈 Margen de ganancia</div>
+      <div class="detail-row-val" style="color:var(--yellow)">+${margin}%</div>
+    </div>
+    <div class="detail-row">
+      <div class="detail-row-label">📍 Ubicación</div>
+      <div class="detail-row-val">${t.loc}</div>
+    </div>
+    <div class="sheet-actions" style="grid-template-columns:1fr 1fr 1fr;margin-top:20px">
+      <button class="action-btn primary" onclick="closeSheet('sheet-detail');openSheet('sheet-sell');document.getElementById('sl-tire').value='${t.id}';fillSellPrice()">💸 Vender</button>
+      <button class="action-btn success" onclick="closeSheet('sheet-detail');openSheet('sheet-buy');document.getElementById('by-tire').value='${t.id}'">📦 Comprar</button>
+      <button class="action-btn danger" onclick="doDelete('${t.id}')">🗑️ Borrar</button>
+    </div>
+  `;
+  openSheet('sheet-detail');
+}
+
+function doDelete(id) {
+  if (!confirm('¿Eliminar esta llanta del inventario?')) return;
+  tires = tires.filter(t=>t.id!==id);
+  persist();
+  closeSheet('sheet-detail');
+  renderInv();
+  renderHome();
+  toast('Llanta eliminada', 'success');
+}
+
+// ══════════════ TIRE SELECTS ══════════════
+function populateTireSelects() {
+  const opts = tires.map(t=>`<option value="${t.id}">${t.brand} ${t.model} (${t.size}) — ${t.stock} uds</option>`).join('')
+    || '<option disabled>No hay llantas registradas</option>';
+  document.getElementById('sl-tire').innerHTML = opts;
+  document.getElementById('by-tire').innerHTML = opts;
+}
+
+function fillSellPrice() {
+  const id = document.getElementById('sl-tire')?.value;
+  const t = tires.find(x=>x.id===id);
+  if (t) { document.getElementById('sl-price').value = t.price; }
+  updateSellPreview();
+}
+
+function updateSellPreview() {
+  const id = document.getElementById('sl-tire')?.value;
+  const t = tires.find(x=>x.id===id);
+  const qty = parseInt(document.getElementById('sl-qty')?.value) || 0;
+  const price = parseFloat(document.getElementById('sl-price')?.value) || 0;
+  const prev = document.getElementById('sell-preview');
+  if (!prev) return;
+  if (!t) { prev.innerHTML = '<span style="color:var(--sub);font-size:13px">Selecciona una llanta</span>'; return; }
+  const total = qty * price;
+  const profit = qty * (price - t.cost);
+  prev.innerHTML = `
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+      <span style="color:var(--sub);font-size:13px">Total de venta</span>
+      <span style="font-family:'Orbitron',monospace;font-size:16px;font-weight:700;color:var(--orange)">$${total.toLocaleString()}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between">
+      <span style="color:var(--sub);font-size:13px">Ganancia estimada</span>
+      <span style="font-family:'Orbitron',monospace;font-size:14px;font-weight:700;color:${profit>=0?'var(--green)':'var(--red)'}">$${profit.toLocaleString()}</span>
+    </div>
+  `;
+}
+
+document.getElementById('sl-qty')?.addEventListener('input', updateSellPreview);
+document.getElementById('sl-price')?.addEventListener('input', updateSellPreview);
+
+// ══════════════ ACTIONS ══════════════
+function doAddTire() {
+  const brand = document.getElementById('a-brand').value.trim();
+  const model = document.getElementById('a-model').value.trim();
+  const size  = document.getElementById('a-size').value.trim();
+  if (!brand || !model || !size) { toast('Completa marca, modelo y medida ❌', 'error'); return; }
+  tires.push({
+    id: `TC${String(uid).padStart(3,'0')}`,
+    brand, model, size,
+    type:     document.getElementById('a-type').value,
+    stock:    parseInt(document.getElementById('a-stock').value) || 0,
+    minStock: 2,
+    cost:     parseFloat(document.getElementById('a-cost').value) || 0,
+    price:    parseFloat(document.getElementById('a-price').value) || 0,
+    loc:      document.getElementById('a-loc').value,
+    at:       new Date().toISOString(),
+  });
+  uid++;
+  persist();
+  closeSheet('sheet-add');
+  // clear
+  ['a-brand','a-model','a-size','a-cost','a-price'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('a-stock').value = 0;
+  renderInv(); renderHome();
+  toast(`✅ ${brand} ${model} agregada`, 'success');
+}
+
+function doSell() {
+  const tid   = document.getElementById('sl-tire').value;
+  const qty   = parseInt(document.getElementById('sl-qty').value);
+  const price = parseFloat(document.getElementById('sl-price').value);
+  const t     = tires.find(x=>x.id===tid);
+  if (!t || !qty || qty<1) { toast('Selecciona llanta y cantidad ❌','error'); return; }
+  if (t.stock < qty) { toast(`Solo hay ${t.stock} en stock ❌`,'error'); return; }
+  t.stock -= qty;
+  txs.push({
+    id:`T${String(txs.length+1).padStart(3,'0')}`,type:'sell',tid,
+    name:`${t.brand} ${t.model}`,qty,unit:price||t.price,total:qty*(price||t.price),
+    party:document.getElementById('sl-client').value||'—',at:new Date().toISOString(),
+  });
+  persist();
+  closeSheet('sheet-sell');
+  closeSheet('sheet-detail');
+  renderHome(); renderInv();
+  toast(`💸 Venta: ${qty} × ${t.brand} $${(qty*(price||t.price)).toLocaleString()}`, 'success');
+}
+
+function doBuy() {
+  const tid  = document.getElementById('by-tire').value;
+  const qty  = parseInt(document.getElementById('by-qty').value);
+  const cost = parseFloat(document.getElementById('by-cost').value);
+  const t    = tires.find(x=>x.id===tid);
+  if (!t || !qty || qty<1) { toast('Selecciona llanta y cantidad ❌','error'); return; }
+  t.stock += qty;
+  if (cost) t.cost = cost;
+  txs.push({
+    id:`T${String(txs.length+1).padStart(3,'0')}`,type:'buy',tid,
+    name:`${t.brand} ${t.model}`,qty,unit:cost||t.cost,total:qty*(cost||t.cost),
+    party:document.getElementById('by-supplier').value||'—',at:new Date().toISOString(),
+  });
+  persist();
+  closeSheet('sheet-buy');
+  renderHome(); renderInv();
+  toast(`📦 +${qty} unidades de ${t.brand}`, 'success');
+}
+
+// ══════════════ TOAST ══════════════
+function toast(msg, type='success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${type} show`;
+  clearTimeout(el._t);
+  el._t = setTimeout(()=>el.classList.remove('show'), 2800);
+}
+
+// ══════════════ INIT ══════════════
+seed();
+// Set indicator initial position
+setTimeout(() => {
+  const ind = document.getElementById('tab-ind');
+  const w = 100/3;
+  ind.style.width = w + '%';
+  ind.style.left = '0%';
+  renderHome();
+  setTimeout(()=>document.getElementById('splash').classList.add('hide'), 100);
+}, 1200);
+
+// Sell preview listeners
+document.getElementById('sl-tire').addEventListener('change', fillSellPrice);
+document.getElementById('sl-qty').addEventListener('input', updateSellPreview);
+document.getElementById('sl-price').addEventListener('input', updateSellPreview);
+</script>
+</body>
+</html>
