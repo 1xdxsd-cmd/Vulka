@@ -3,14 +3,14 @@
   "version": "1.0.0",
   "description": "Inventario de llantas — Vulcanizadora Patitas",
   "scripts": {
-    "build": "echo 'HTML puro, sin build'",
-    "sync": "npx cap sync android"
+    "build": "echo listo"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",
     "@capacitor/core": "^6.0.0"
   },
   "devDependencies": {
-    "@capacitor/cli": "^6.0.0"
+    "@capacitor/cli": "^6.0.0",
+    "typescript": "^5.0.0"
   }
 }
