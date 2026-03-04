@@ -1147,79 +1147,106 @@ _¡Gracias por su preferencia!_ 🙏🐾`
   };
 }
 
-// Botón "Ver PDF" — usa Share nativo en APK, o imagen HTML en navegador
-async function abrirComprobante() {
-  if(!currentReceipt) return;
-  const {tx, tire} = currentReceipt;
-  const { folio, texto } = msgComprobante(tx, tire);
+// ══════════════════════════════════════════
+// COMPROBANTE — usa @capacitor/browser para
+// abrir el HTML en Chrome real del teléfono.
+// Chrome sí puede imprimir/guardar como PDF.
+// ══════════════════════════════════════════
 
-  if (isNative()) {
-    // En APK: compartir el texto como imagen con el Share nativo
-    try {
-      await window.Capacitor.Plugins.Share.share({
-        title: `Comprobante Patitas #${folio}`,
-        text: texto,
-        dialogTitle: 'Guardar o compartir comprobante'
-      });
-      toast('✅ Listo','ok');
-    } catch(e) { if(e.message!=='Share canceled') toast('Error: '+e.message,'err'); }
-  } else {
-    // En navegador: abrir comprobante visual en nueva pestaña
-    const {tx,tire} = currentReceipt;
-    const fv=new Date(tx.created_at),fg=new Date(fv.getTime()+15*864e5);
-    const fd=d=>d.toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
-    const f=tx.id.slice(-6).toUpperCase();
-    const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+function buildHtmlComprobante(tx, tire) {
+  const fv=new Date(tx.created_at), fg=new Date(fv.getTime()+15*864e5);
+  const fd=d=>d.toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
+  const folio=tx.id.slice(-6).toUpperCase();
+  return { folio, html:`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Comprobante #${f}</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;background:#f0f4f8;padding:16px}
+<title>Comprobante Patitas #${folio}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#f0f4f8;padding:16px;color:#1a2540}
 .c{background:#fff;border-radius:14px;overflow:hidden;max-width:420px;margin:0 auto;box-shadow:0 4px 20px rgba(0,0,0,.1)}
 .h{background:linear-gradient(135deg,#0d1b3e,#1a3060);padding:22px 18px;text-align:center}
-.h .n{font-size:18px;font-weight:900;color:#f5a623}.h .s{font-size:10px;color:rgba(255,255,255,.5);margin-top:3px}
-.h .a{font-size:10px;color:rgba(255,255,255,.4);margin-top:3px}
+.hn{font-size:18px;font-weight:900;color:#f5a623;margin-top:5px}
+.hs{font-size:10px;color:rgba(255,255,255,.5);margin-top:3px;letter-spacing:1px;text-transform:uppercase}
+.ha{font-size:10px;color:rgba(255,255,255,.4);margin-top:3px}
 .fo{background:#f5f8ff;padding:14px;text-align:center;border-bottom:1px solid #eee}
-.fo .n{font-size:24px;font-weight:900;color:#0d1b3e}.fo .f{font-size:11px;color:#8899bb;margin-top:3px}
-.b{padding:16px 18px}.s{font-size:10px;font-weight:800;color:#8899bb;text-transform:uppercase;padding-bottom:5px;border-bottom:1px solid #eee;margin:12px 0 7px}
-.r{display:flex;justify-content:space-between;padding:4px 0;font-size:13px}.r span:first-child{color:#8899bb}.r span:last-child{font-weight:700}
-.t{background:#f0f4ff;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;margin:12px 0}
-.t span:first-child{font-size:12px;color:#5a7299;font-weight:700}.t span:last-child{font-size:24px;font-weight:900;color:#0d1b3e}
-.g{background:#fff8ee;border:1.5px solid #f5a623;border-radius:10px;padding:13px;margin-bottom:4px}
-.g .gt{font-size:12px;font-weight:900;color:#b06000;margin-bottom:7px}.g .gb{font-size:12px;color:#7a4400;line-height:1.7}
+.fn{font-size:24px;font-weight:900;color:#0d1b3e;letter-spacing:2px}
+.ff{font-size:11px;color:#8899bb;margin-top:3px}
+.b{padding:16px 18px}
+.s{font-size:10px;font-weight:800;color:#8899bb;text-transform:uppercase;padding-bottom:5px;border-bottom:1px solid #eee;margin:12px 0 7px}
+.r{display:flex;justify-content:space-between;padding:5px 0;font-size:13px}
+.r span:first-child{color:#8899bb}.r span:last-child{font-weight:700}
+.tot{background:#f0f4ff;border-radius:10px;padding:13px;display:flex;justify-content:space-between;align-items:center;margin:13px 0}
+.tot span:first-child{font-size:12px;color:#5a7299;font-weight:700}
+.tot span:last-child{font-size:24px;font-weight:900;color:#0d1b3e}
+.g{background:#fff8ee;border:1.5px solid #f5a623;border-radius:10px;padding:13px;margin-bottom:6px}
+.gt{font-size:12px;font-weight:900;color:#b06000;margin-bottom:8px}
+.gb{font-size:12px;color:#7a4400;line-height:1.7}
 .ft{background:#f8faff;padding:12px;text-align:center;border-top:1px solid #eee;font-size:11px;color:#8899bb}
-.btn{display:block;margin:14px auto 0;background:#f5a623;color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;width:100%}
-@media print{.btn{display:none}body{background:#fff;padding:0}.c{box-shadow:none;border-radius:0}}</style></head>
-<body><div class="c">
-<div class="h"><div style="font-size:32px;margin-bottom:5px">🐾</div>
-<div class="n">Vulcanizadora Patitas</div><div class="s">COMPROBANTE DE VENTA</div>
-<div class="a">📍 Av del Sauce 107, Saucito, SLP 78110</div></div>
-<div class="fo"><div style="font-size:10px;color:#8899bb;text-transform:uppercase">Folio</div>
-<div class="n">#${f}</div><div class="f">${fd(fv)}</div></div>
+.btn{display:block;width:100%;margin:14px 0 0;padding:14px;background:#f5a623;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:900;cursor:pointer}
+.tip{font-size:11px;color:#8899bb;text-align:center;margin:8px 0 4px;line-height:1.6}
+@media print{.btn,.tip{display:none}body{background:#fff;padding:0}.c{box-shadow:none;border-radius:0}}
+</style></head><body>
+<div class="c">
+<div class="h"><div style="font-size:30px">🐾</div>
+<div class="hn">Vulcanizadora Patitas</div>
+<div class="hs">Comprobante de Venta</div>
+<div class="ha">📍 Av del Sauce 107, Saucito, SLP 78110</div></div>
+<div class="fo">
+<div style="font-size:10px;color:#8899bb;text-transform:uppercase;letter-spacing:1px">Folio</div>
+<div class="fn">#${folio}</div><div class="ff">${fd(fv)}</div></div>
 <div class="b">
 <div class="s">👤 Cliente</div>
 <div class="r"><span>Nombre</span><span>${tx.party||'Cliente'}</span></div>
-${tx.phone?`<div class="r"><span>Teléfono</span><span>${tx.phone}</span></div>`:''}
+${tx.phone ? '<div class="r"><span>Teléfono</span><span>'+tx.phone+'</span></div>' : ''}
 <div class="s">🛞 Producto</div>
 <div class="r"><span>Llanta</span><span>${tire.brand} ${tire.model}</span></div>
 <div class="r"><span>Medida</span><span>${tire.size}</span></div>
+<div class="r"><span>Tipo</span><span>${tire.type||'—'}</span></div>
 <div class="r"><span>Cantidad</span><span>${tx.qty} pieza${tx.qty>1?'s':''}</span></div>
 <div class="r"><span>Precio unitario</span><span>$${tx.unit_price.toLocaleString()}</span></div>
-<div class="t"><span>TOTAL PAGADO</span><span>$${tx.total.toLocaleString()}</span></div>
+<div class="tot"><span>TOTAL PAGADO</span><span>$${tx.total.toLocaleString()}</span></div>
 <div class="g"><div class="gt">🛡️ Garantía — 15 Días</div>
-<div class="gb">Válida hasta: <strong>${fd(fg)}</strong><br>
-Cubre defectos de fabricación. No aplica pinchazos ni impactos.<br>
+<div class="gb">Esta llanta tiene <strong>garantía de 15 días</strong> a partir de la fecha de compra.<br>
+📅 <strong>Válida hasta: ${fd(fg)}</strong><br><br>
+Cubre defectos de fabricación. No aplica pinchazos, impactos ni desgaste normal.<br>
 <strong>Presenta este comprobante para hacer válida tu garantía.</strong></div></div>
-</div><div class="ft"><p>¡Gracias por su preferencia! 🙏</p><p>Folio: #${f}</p></div></div>
-<button class="btn" onclick="window.print()">📥 Guardar como PDF</button>
-</body></html>`;
-    const blob = new Blob([html],{type:'text/html'});
+</div>
+<div class="ft"><p>¡Gracias por su preferencia! 🙏</p><p style="margin-top:3px">Vulcanizadora Patitas · Folio: #${folio}</p></div>
+</div>
+<button class="btn" onclick="window.print()">🖨️ Guardar como PDF / Imprimir</button>
+<p class="tip">Toca el botón → elige <strong>Guardar como PDF</strong><br>o toca <strong>⋮ Compartir</strong> para enviarlo por WhatsApp</p>
+</body></html>` };
+}
+
+async function abrirComprobante() {
+  if(!currentReceipt) return;
+  const { tx, tire } = currentReceipt;
+  const { folio, html } = buildHtmlComprobante(tx, tire);
+
+  if (isNative()) {
+    try {
+      // Codificar HTML como data URL y abrirlo en el navegador real del teléfono
+      // Chrome en Android sí puede imprimir → Guardar como PDF
+      const b64 = btoa(unescape(encodeURIComponent(html)));
+      const dataUrl = 'data:text/html;base64,' + b64;
+      await window.Capacitor.Plugins.Browser.open({
+        url: dataUrl,
+        presentationStyle: 'fullscreen',
+        toolbarColor: '#0d1b3e'
+      });
+      toast('📄 Abierto en Chrome — usa ⋮ Imprimir para guardar PDF', 'ok');
+    } catch(e) {
+      toast('Error: ' + e.message, 'err');
+    }
+  } else {
+    const blob = new Blob([html], {type:'text/html;charset=utf-8'});
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.target='_blank';
+    a.href = URL.createObjectURL(blob); a.target = '_blank';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    toast('📄 Comprobante abierto — toca Guardar PDF','ok');
+    toast('📄 Comprobante abierto','ok');
   }
 }
 
-// Botón WhatsApp
 async function shareWA() {
   if(!currentReceipt) return;
   const { folio, texto } = msgComprobante(currentReceipt.tx, currentReceipt.tire);

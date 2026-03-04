@@ -9,6 +9,7 @@
   },
   "plugins": {
     "Share": {},
-    "Filesystem": {}
+    "Filesystem": {},
+    "Browser": {}
   }
 }
