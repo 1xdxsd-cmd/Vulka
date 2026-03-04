@@ -1225,18 +1225,36 @@ async function abrirComprobante() {
 
   if (isNative()) {
     try {
-      // Codificar HTML como data URL y abrirlo en el navegador real del teléfono
-      // Chrome en Android sí puede imprimir → Guardar como PDF
-      const b64 = btoa(unescape(encodeURIComponent(html)));
-      const dataUrl = 'data:text/html;base64,' + b64;
-      await window.Capacitor.Plugins.Browser.open({
-        url: dataUrl,
+      const { Filesystem, Browser } = window.Capacitor.Plugins;
+      const fileName = `comprobante_${folio}.html`;
+
+      // 1. Guardar HTML como archivo en Documents
+      const saved = await Filesystem.writeFile({
+        path: fileName,
+        data: html,
+        directory: 'DOCUMENTS',
+        encoding: 'utf8',
+        recursive: true
+      });
+
+      // 2. Abrir el archivo con Browser (Chrome real del teléfono)
+      await Browser.open({
+        url: saved.uri,
         presentationStyle: 'fullscreen',
         toolbarColor: '#0d1b3e'
       });
-      toast('📄 Abierto en Chrome — usa ⋮ Imprimir para guardar PDF', 'ok');
+      toast('📄 Abierto — toca ⋮ Imprimir para guardar PDF', 'ok');
     } catch(e) {
-      toast('Error: ' + e.message, 'err');
+      // Fallback: compartir como texto
+      try {
+        const { folio: f, texto } = msgComprobante(tx, tire);
+        await window.Capacitor.Plugins.Share.share({
+          title: `Comprobante #${f}`, text: texto,
+          dialogTitle: 'Compartir comprobante'
+        });
+      } catch(e2) {
+        toast('Error: ' + e.message, 'err');
+      }
     }
   } else {
     const blob = new Blob([html], {type:'text/html;charset=utf-8'});

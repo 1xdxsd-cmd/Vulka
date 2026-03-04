@@ -9,7 +9,9 @@
   },
   "plugins": {
     "Share": {},
-    "Filesystem": {},
-    "Browser": {}
+    "Browser": {},
+    "Filesystem": {
+      "androidExtraFilesystemPath": "documents"
+    }
   }
 }
