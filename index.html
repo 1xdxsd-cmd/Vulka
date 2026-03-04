@@ -647,23 +647,13 @@ html,body{height:100%;overflow:hidden;font-family:'Nunito',sans-serif;background
     <div class="sh-body">
       <div id="rcpt-preview"></div>
       <div class="slbl">Compartir comprobante</div>
-      <!-- Botón principal: genera PDF y luego da opciones -->
-      <button class="sb gold" id="gen-pdf-btn" onclick="generarYCompartir()" style="margin-bottom:10px">
-        📄 Generar PDF del Comprobante
-      </button>
-      <!-- Opciones de compartir (ocultas hasta que se genera el PDF) -->
-      <div id="share-options" style="display:none">
-        <div style="background:var(--card2);border-radius:12px;padding:13px;margin-bottom:10px;border:1px solid var(--border)">
-          <div style="font-size:12px;color:var(--green);font-weight:800;margin-bottom:8px">✅ PDF listo — elige cómo enviarlo</div>
-          <div class="share-btns">
-            <button class="shr wa" onclick="shareConPDF()"><span style="font-size:20px">💬</span>Enviar por WhatsApp</button>
-            <button class="shr pdf" onclick="abrirPDF()"><span style="font-size:20px">📥</span>Descargar PDF</button>
-          </div>
-        </div>
-        <div style="font-size:11px;color:var(--sub);text-align:center;line-height:1.6">
-          💬 <b>WhatsApp:</b> abre el menú para compartir el PDF directo<br>
-          📥 <b>Descargar:</b> guarda el PDF en tu teléfono
-        </div>
+      <div class="share-btns">
+        <button class="shr wa" onclick="shareWA()"><span style="font-size:20px">💬</span>WhatsApp</button>
+        <button class="shr pdf" onclick="abrirComprobante()"><span style="font-size:20px">📄</span>Ver PDF</button>
+      </div>
+      <div style="margin-top:10px;background:var(--card2);border-radius:10px;padding:11px 13px;font-size:11px;color:var(--sub);line-height:1.7">
+        💬 <b style="color:var(--text)">WhatsApp:</b> envía el comprobante como mensaje<br>
+        📄 <b style="color:var(--text)">Ver PDF:</b> abre el comprobante → toca <b style="color:var(--gold)">⋮ Compartir</b> o <b style="color:var(--gold)">Imprimir → Guardar PDF</b>
       </div>
     </div>
   </div>
@@ -673,7 +663,7 @@ html,body{height:100%;overflow:hidden;font-family:'Nunito',sans-serif;background
 // ══════════════════════════════════════════
 // INDEXEDDB — Base de datos local del dispositivo
 // ══════════════════════════════════════════
-const DB_NAME = 'PatitasInventory', DB_VER = 1;
+const DB_NAME = 'PatitasInventory', DB_VER = 2;
 let db;
 
 function openDB() {
@@ -685,22 +675,30 @@ function openDB() {
         d.createObjectStore('tires', { keyPath:'id' });
       if (!d.objectStoreNames.contains('transactions'))
         d.createObjectStore('transactions', { keyPath:'id' });
+      if (!d.objectStoreNames.contains('meta'))
+        d.createObjectStore('meta', { keyPath:'k' });
     };
     req.onsuccess = e => { db = e.target.result; res(db); };
     req.onerror   = e => rej(e.target.error);
   });
 }
-const dbAll = s => new Promise((r,j) => { const t=db.transaction(s,'readonly'),q=t.objectStore(s).getAll(); q.onsuccess=()=>r(q.result); q.onerror=e=>j(e.target.error); });
-const dbPut = (s,o) => new Promise((r,j) => { const t=db.transaction(s,'readwrite'),q=t.objectStore(s).put(o); q.onsuccess=()=>r(); q.onerror=e=>j(e.target.error); });
-const dbDel = (s,k) => new Promise((r,j) => { const t=db.transaction(s,'readwrite'),q=t.objectStore(s).delete(k); q.onsuccess=()=>r(); q.onerror=e=>j(e.target.error); });
-const uid = p => `${p}${Date.now().toString(36).toUpperCase()}`;
+const dbAll    = s   => new Promise((r,j) => { const t=db.transaction(s,'readonly'),q=t.objectStore(s).getAll(); q.onsuccess=()=>r(q.result); q.onerror=e=>j(e.target.error); });
+const dbPut    = (s,o) => new Promise((r,j) => { const t=db.transaction(s,'readwrite'),q=t.objectStore(s).put(o); q.onsuccess=()=>r(); q.onerror=e=>j(e.target.error); });
+const dbDel    = (s,k) => new Promise((r,j) => { const t=db.transaction(s,'readwrite'),q=t.objectStore(s).delete(k); q.onsuccess=()=>r(); q.onerror=e=>j(e.target.error); });
+const dbGetMeta= k   => new Promise((r,j) => { const t=db.transaction('meta','readonly'),q=t.objectStore('meta').get(k); q.onsuccess=()=>r(q.result?.v||null); q.onerror=()=>r(null); });
+const dbPutMeta= (k,v) => new Promise((r,j) => { const t=db.transaction('meta','readwrite'),q=t.objectStore('meta').put({k,v}); q.onsuccess=()=>r(); q.onerror=e=>j(e.target.error); });
+const uid      = p   => `${p}${Date.now().toString(36).toUpperCase()}`;
 
 // ══════════════════════════════════════════
-// SEED
+// SEED — solo la primera vez que se instala
+// Usa una clave especial en IndexedDB para no
+// repetirse aunque la BD de tires esté vacía
 // ══════════════════════════════════════════
 async function seedIfEmpty() {
-  const tt = await dbAll('tires');
-  if (tt.length) return;
+  // Verificar si ya se sembró antes (aunque el usuario haya borrado todo)
+  const meta = await dbGetMeta('seeded');
+  if (meta) return; // ya se sembró antes, no repetir
+
   const demo = [
     {brand:'Bridgestone',model:'Turanza T001',  size:'205/55R16',type:'Turismo',stock:8, min_stock:3,cost:80, price:130,location:'A1',notes:''},
     {brand:'Michelin',   model:'Pilot Sport 4', size:'225/45R17',type:'Deporte',stock:2, min_stock:3,cost:150,price:220,location:'A1',notes:''},
@@ -711,6 +709,7 @@ async function seedIfEmpty() {
     {brand:'Yokohama',   model:'Geolandar',     size:'275/65R17',type:'SUV',    stock:1, min_stock:2,cost:120,price:185,location:'B3',notes:''},
   ];
   for (const d of demo) await dbPut('tires',{id:uid('TC'),...d,created_at:new Date().toISOString()});
+  await dbPutMeta('seeded', '1'); // marcar como sembrado para no repetir
 }
 
 // ══════════════════════════════════════════
@@ -1116,173 +1115,19 @@ function showReceipt(tx, tire) {
 }
 
 // ══════════════════════════════════════════
-// PDF — genera y devuelve blob + datauri
+// COMPARTIR — Capacitor Share (nativo Android)
+// con fallback para navegador
 // ══════════════════════════════════════════
-let pdfBlob = null;
-let pdfDataUri = null;
-let pdfFileName = '';
 
-function buildPDF() {
-  if(!currentReceipt) return null;
-  const {tx,tire}=currentReceipt;
-  const {jsPDF}=window.jspdf;
-  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a5'});
-  const W=148,M=14; let y=0;
-  const fv=new Date(tx.created_at),fg=new Date(fv.getTime()+15*864e5);
-  const fd=d=>d.toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
-  const folio=tx.id.slice(-6).toUpperCase();
+const isNative = () => !!(window.Capacitor?.isNativePlatform?.());
 
-  // HEADER
-  doc.setFillColor(13,27,62); doc.rect(0,0,W,40,'F');
-  doc.setFillColor(245,166,35);
-  doc.circle(W/2,12,5,'F');
-  doc.circle(W/2-7,7,3,'F'); doc.circle(W/2-3,5,2.8,'F');
-  doc.circle(W/2+3,5,2.8,'F'); doc.circle(W/2+7,7,3,'F');
-  doc.setFillColor(13,27,62); doc.circle(W/2,12,2.5,'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(245,166,35);
-  doc.text('Vulcanizadora Patitas',W/2,23,{align:'center'});
-  doc.setFontSize(7.5); doc.setTextColor(180,200,255);
-  doc.text('COMPROBANTE DE VENTA',W/2,29,{align:'center'});
-  doc.setFontSize(6.5); doc.setTextColor(140,160,210);
-  doc.text('Av del Sauce 107, Saucito, San Luis Potosi, SLP 78110',W/2,35,{align:'center'});
-  y=44;
-
-  // FOLIO
-  doc.setFillColor(245,247,252); doc.roundedRect(M-2,y-4,W-M*2+4,18,3,3,'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(136,153,187);
-  doc.text('FOLIO',W/2,y+2,{align:'center'});
-  doc.setFontSize(16); doc.setTextColor(13,27,62);
-  doc.text(`#${folio}`,W/2,y+10,{align:'center'});
-  doc.setFontSize(7); doc.setTextColor(136,153,187);
-  doc.text(fd(fv),W/2,y+16,{align:'center'});
-  y+=22;
-
-  const row=(lbl,val,yy)=>{
-    doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(100,130,170);
-    doc.text(lbl,M,yy);
-    doc.setFont('helvetica','bold');doc.setTextColor(26,37,64);
-    doc.text(String(val),W-M,yy,{align:'right'});
-  };
-  const sec=(title,yy)=>{
-    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(100,130,170);
-    doc.text(title.toUpperCase(),M,yy);
-    doc.setDrawColor(220,226,240);doc.line(M,yy+1.5,W-M,yy+1.5);
-    return yy+7;
-  };
-
-  y=sec('CLIENTE',y);
-  row('Nombre',tx.party||'Cliente',y);y+=6;
-  if(tx.phone){row('Telefono',tx.phone,y);y+=6;}
-  y+=2;
-
-  y=sec('PRODUCTO VENDIDO',y);
-  row('Llanta',`${tire.brand} ${tire.model}`,y);y+=6;
-  row('Medida',tire.size,y);y+=6;
-  row('Tipo',tire.type||'—',y);y+=6;
-  row('Cantidad',`${tx.qty} pieza${tx.qty>1?'s':''}`,y);y+=6;
-  row('Precio unitario',`$${tx.unit_price.toLocaleString()}`,y);y+=8;
-
-  // Total
-  doc.setFillColor(240,244,255);
-  doc.roundedRect(M-2,y-4,W-M*2+4,15,3,3,'F');
-  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(13,27,62);
-  doc.text('TOTAL PAGADO',M+2,y+4);
-  doc.setFontSize(13);doc.setTextColor(0,140,90);
-  doc.text(`$${tx.total.toLocaleString()}`,W-M-2,y+4,{align:'right'});
-  y+=18;
-
-  // Garantia
-  doc.setFillColor(255,248,238);
-  doc.roundedRect(M-2,y-4,W-M*2+4,54,3,3,'F');
-  doc.setDrawColor(245,166,35);
-  doc.roundedRect(M-2,y-4,W-M*2+4,54,3,3,'S');
-  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(176,96,0);
-  doc.text('GARANTIA — 15 DIAS',M+2,y+4);
-  doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(100,50,0);
-  const gtxt=doc.splitTextToSize(
-    `Esta llanta tiene garantia de 15 dias a partir de la fecha de compra.\n\nValida hasta: ${fd(fg)}\n\nCubre defectos de fabricacion. No aplica para pinchazos, impactos o desgaste normal.\n\nPresenta este comprobante para hacer valida tu garantia.`,
-    W-M*2);
-  doc.text(gtxt,M+2,y+11);
-  y+=57;
-
-  // Footer
-  doc.setFillColor(248,250,255); doc.rect(0,y,W,20,'F');
-  doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(140,155,180);
-  doc.text('Gracias por su preferencia  Vulcanizadora Patitas',W/2,y+6,{align:'center'});
-  doc.text('Av del Sauce 107, Saucito, San Luis Potosi, SLP 78110',W/2,y+11,{align:'center'});
-  doc.text(`Folio: #${folio}  |  ${fd(fv)}`,W/2,y+16,{align:'center'});
-
-  return { doc, folio, tire };
-}
-
-// Genera el PDF y guarda en memoria, muestra opciones
-async function generarYCompartir() {
-  if(!currentReceipt) return;
-  const btn = document.getElementById('gen-pdf-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spin"></span> Generando PDF...';
-  try {
-    const resultado = buildPDF();
-    if(!resultado) throw new Error('Sin comprobante');
-    const { doc, folio, tire } = resultado;
-    pdfFileName = `Patitas_${folio}_${tire.brand}_${tire.model}.pdf`.replace(/\s+/g,'_');
-    // Guardar como blob Y como datauri (para Android)
-    const raw = doc.output('arraybuffer');
-    pdfBlob     = new Blob([raw], { type:'application/pdf' });
-    pdfDataUri  = doc.output('datauristring');
-    document.getElementById('share-options').style.display = 'block';
-    btn.innerHTML = '🔄 Regenerar PDF';
-    btn.disabled = false;
-    toast('✅ PDF listo','ok');
-  } catch(e) {
-    toast('Error: '+e.message,'err');
-    btn.innerHTML = '📄 Generar PDF del Comprobante';
-    btn.disabled = false;
-  }
-}
-
-// Abrir / guardar PDF — funciona en Android y desktop
-function abrirPDF() {
-  if(!pdfBlob) { toast('Primero genera el PDF ⬆️','err'); return; }
-  try {
-    // Método 1: Web Share API con archivo (Android Chrome moderno)
-    if (navigator.share && navigator.canShare) {
-      const file = new File([pdfBlob], pdfFileName, { type:'application/pdf' });
-      if (navigator.canShare({ files:[file] })) {
-        navigator.share({ files:[file], title: pdfFileName })
-          .then(()=> toast('✅ PDF compartido','ok'))
-          .catch(()=> abrirConDataUri());
-        return;
-      }
-    }
-    abrirConDataUri();
-  } catch(e) { abrirConDataUri(); }
-}
-
-function abrirConDataUri() {
-  // Abrir en nueva pestaña — en Android aparece el visor de PDF con opción de descargar
-  const url = URL.createObjectURL(pdfBlob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.target = '_blank';
-  a.download = pdfFileName;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(()=> URL.revokeObjectURL(url), 5000);
-  toast('📂 PDF abierto — guárdalo desde el visor','ok');
-}
-
-// WhatsApp: envía el PDF como archivo + mensaje de texto
-async function shareConPDF() {
-  if(!pdfBlob || !currentReceipt) { toast('Primero genera el PDF ⬆️','err'); return; }
-  const {tx,tire}=currentReceipt;
-  const fv=new Date(tx.created_at),fg=new Date(fv.getTime()+15*864e5);
-  const fd=d=>d.toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
-  const folio=tx.id.slice(-6).toUpperCase();
-
-  const msg =
-`🐾 *VULCANIZADORA PATITAS*
+function msgComprobante(tx, tire) {
+  const fv = new Date(tx.created_at);
+  const fg = new Date(fv.getTime() + 15*864e5);
+  const fd = d => d.toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
+  const folio = tx.id.slice(-6).toUpperCase();
+  return { folio, fd, fv, fg,
+    texto: `🐾 *VULCANIZADORA PATITAS*
 📍 Av del Sauce 107, Saucito, SLP 78110
 ━━━━━━━━━━━━━━━━━━━
 🧾 *COMPROBANTE DE VENTA*
@@ -1293,34 +1138,106 @@ async function shareConPDF() {
 🔢 *Cantidad:* ${tx.qty} pieza${tx.qty>1?'s':''}
 💰 *TOTAL: $${tx.total.toLocaleString()}*
 ━━━━━━━━━━━━━━━━━━━
-🛡️ *GARANTIA 15 DIAS*
-✅ Valida hasta: *${fd(fg)}*
-Cubre defectos de fabricacion. No aplica pinchazos ni impactos.
-Presenta este comprobante para hacer valida tu garantia.
+🛡️ *GARANTÍA 15 DÍAS*
+✅ Válida hasta: *${fd(fg)}*
+Cubre defectos de fabricación. No aplica pinchazos ni impactos.
+Presenta este comprobante para hacer válida tu garantía.
 ━━━━━━━━━━━━━━━━━━━
-_Gracias por su preferencia_ 🙏🐾`;
+_¡Gracias por su preferencia!_ 🙏🐾`
+  };
+}
 
-  // Intento 1: Web Share API con archivo PDF adjunto (Android Chrome)
-  const file = new File([pdfBlob], pdfFileName, { type:'application/pdf' });
-  if (navigator.share && navigator.canShare && navigator.canShare({ files:[file] })) {
+// Botón "Ver PDF" — usa Share nativo en APK, o imagen HTML en navegador
+async function abrirComprobante() {
+  if(!currentReceipt) return;
+  const {tx, tire} = currentReceipt;
+  const { folio, texto } = msgComprobante(tx, tire);
+
+  if (isNative()) {
+    // En APK: compartir el texto como imagen con el Share nativo
     try {
-      await navigator.share({ files:[file], title:`Comprobante Patitas #${folio}`, text: msg });
-      toast('✅ Enviado por WhatsApp con PDF','ok');
-      return;
-    } catch(e) {
-      if (e.name === 'AbortError') return; // usuario canceló
-    }
+      await window.Capacitor.Plugins.Share.share({
+        title: `Comprobante Patitas #${folio}`,
+        text: texto,
+        dialogTitle: 'Guardar o compartir comprobante'
+      });
+      toast('✅ Listo','ok');
+    } catch(e) { if(e.message!=='Share canceled') toast('Error: '+e.message,'err'); }
+  } else {
+    // En navegador: abrir comprobante visual en nueva pestaña
+    const {tx,tire} = currentReceipt;
+    const fv=new Date(tx.created_at),fg=new Date(fv.getTime()+15*864e5);
+    const fd=d=>d.toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
+    const f=tx.id.slice(-6).toUpperCase();
+    const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Comprobante #${f}</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;background:#f0f4f8;padding:16px}
+.c{background:#fff;border-radius:14px;overflow:hidden;max-width:420px;margin:0 auto;box-shadow:0 4px 20px rgba(0,0,0,.1)}
+.h{background:linear-gradient(135deg,#0d1b3e,#1a3060);padding:22px 18px;text-align:center}
+.h .n{font-size:18px;font-weight:900;color:#f5a623}.h .s{font-size:10px;color:rgba(255,255,255,.5);margin-top:3px}
+.h .a{font-size:10px;color:rgba(255,255,255,.4);margin-top:3px}
+.fo{background:#f5f8ff;padding:14px;text-align:center;border-bottom:1px solid #eee}
+.fo .n{font-size:24px;font-weight:900;color:#0d1b3e}.fo .f{font-size:11px;color:#8899bb;margin-top:3px}
+.b{padding:16px 18px}.s{font-size:10px;font-weight:800;color:#8899bb;text-transform:uppercase;padding-bottom:5px;border-bottom:1px solid #eee;margin:12px 0 7px}
+.r{display:flex;justify-content:space-between;padding:4px 0;font-size:13px}.r span:first-child{color:#8899bb}.r span:last-child{font-weight:700}
+.t{background:#f0f4ff;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;margin:12px 0}
+.t span:first-child{font-size:12px;color:#5a7299;font-weight:700}.t span:last-child{font-size:24px;font-weight:900;color:#0d1b3e}
+.g{background:#fff8ee;border:1.5px solid #f5a623;border-radius:10px;padding:13px;margin-bottom:4px}
+.g .gt{font-size:12px;font-weight:900;color:#b06000;margin-bottom:7px}.g .gb{font-size:12px;color:#7a4400;line-height:1.7}
+.ft{background:#f8faff;padding:12px;text-align:center;border-top:1px solid #eee;font-size:11px;color:#8899bb}
+.btn{display:block;margin:14px auto 0;background:#f5a623;color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;width:100%}
+@media print{.btn{display:none}body{background:#fff;padding:0}.c{box-shadow:none;border-radius:0}}</style></head>
+<body><div class="c">
+<div class="h"><div style="font-size:32px;margin-bottom:5px">🐾</div>
+<div class="n">Vulcanizadora Patitas</div><div class="s">COMPROBANTE DE VENTA</div>
+<div class="a">📍 Av del Sauce 107, Saucito, SLP 78110</div></div>
+<div class="fo"><div style="font-size:10px;color:#8899bb;text-transform:uppercase">Folio</div>
+<div class="n">#${f}</div><div class="f">${fd(fv)}</div></div>
+<div class="b">
+<div class="s">👤 Cliente</div>
+<div class="r"><span>Nombre</span><span>${tx.party||'Cliente'}</span></div>
+${tx.phone?`<div class="r"><span>Teléfono</span><span>${tx.phone}</span></div>`:''}
+<div class="s">🛞 Producto</div>
+<div class="r"><span>Llanta</span><span>${tire.brand} ${tire.model}</span></div>
+<div class="r"><span>Medida</span><span>${tire.size}</span></div>
+<div class="r"><span>Cantidad</span><span>${tx.qty} pieza${tx.qty>1?'s':''}</span></div>
+<div class="r"><span>Precio unitario</span><span>$${tx.unit_price.toLocaleString()}</span></div>
+<div class="t"><span>TOTAL PAGADO</span><span>$${tx.total.toLocaleString()}</span></div>
+<div class="g"><div class="gt">🛡️ Garantía — 15 Días</div>
+<div class="gb">Válida hasta: <strong>${fd(fg)}</strong><br>
+Cubre defectos de fabricación. No aplica pinchazos ni impactos.<br>
+<strong>Presenta este comprobante para hacer válida tu garantía.</strong></div></div>
+</div><div class="ft"><p>¡Gracias por su preferencia! 🙏</p><p>Folio: #${f}</p></div></div>
+<button class="btn" onclick="window.print()">📥 Guardar como PDF</button>
+</body></html>`;
+    const blob = new Blob([html],{type:'text/html'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.target='_blank';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    toast('📄 Comprobante abierto — toca Guardar PDF','ok');
   }
+}
 
-  // Intento 2: descargar PDF y abrir WhatsApp con el texto
-  // (el usuario adjunta el PDF descargado manualmente)
-  abrirConDataUri(); // descarga el PDF
-  setTimeout(() => {
-    const phone = tx.phone ? tx.phone.replace(/\D/g,'') : '';
-    const waUrl = `https://wa.me/${phone?'52'+phone:''}?text=${encodeURIComponent(msg)}`;
-    window.open(waUrl, '_blank');
-    toast('📎 PDF descargado — adjúntalo en WhatsApp','gold');
-  }, 1000);
+// Botón WhatsApp
+async function shareWA() {
+  if(!currentReceipt) return;
+  const { folio, texto } = msgComprobante(currentReceipt.tx, currentReceipt.tire);
+
+  if (isNative()) {
+    try {
+      await window.Capacitor.Plugins.Share.share({
+        title: `Comprobante Patitas #${folio}`,
+        text: texto,
+        dialogTitle: 'Enviar por WhatsApp'
+      });
+      toast('💬 Enviado','ok');
+    } catch(e) { if(e.message!=='Share canceled') toast('Error: '+e.message,'err'); }
+  } else {
+    const phone = currentReceipt.tx.phone?.replace(/\D/g,'') || '';
+    window.open(`https://wa.me/${phone?'52'+phone:''}?text=${encodeURIComponent(texto)}`,'_blank');
+    toast('💬 Abriendo WhatsApp...','ok');
+  }
 }
 
 // ══════════════════════════════════════════

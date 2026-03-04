@@ -2,11 +2,13 @@
   "appId": "com.patitas.inventory",
   "appName": "Patitas Inventory",
   "webDir": "www",
-  "server": {
-    "androidScheme": "https"
-  },
+  "server": { "androidScheme": "https" },
   "android": {
     "allowMixedContent": true,
     "backgroundColor": "#0d1117"
+  },
+  "plugins": {
+    "Share": {},
+    "Filesystem": {}
   }
 }
