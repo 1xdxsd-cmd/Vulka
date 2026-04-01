@@ -376,6 +376,10 @@ html,body{height:100%;overflow:hidden;font-family:'Nunito',sans-serif;background
         <button class="qb c" onclick="openSh('sh-buy')"><span class="qi">📦</span>Registrar Compra</button>
         <button class="qb m" onclick="goTab('map')"><span class="qi">📍</span>Ver Mapa</button>
       </div>
+      <button class="sb" style="background:linear-gradient(135deg,#1a3060,#25d366);color:#fff;margin-bottom:4px" onclick="reporteDia()">
+        📊 Enviar reporte del día al dueño
+      </button>
+      </div>
 
       <div class="slbl">Últimas operaciones</div>
       <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px" id="home-tx">
@@ -593,20 +597,40 @@ html,body{height:100%;overflow:hidden;font-family:'Nunito',sans-serif;background
 <div class="sov" id="sh-sell">
   <div class="sh">
     <div class="sh-handle"></div>
-    <div class="sh-hdr"><div class="sh-title">💸 Registrar Venta</div><button class="sh-x" onclick="closeSh('sh-sell')">✕</button></div>
+    <div class="sh-hdr"><div class="sh-title">💸 Registrar Venta / Servicio</div><button class="sh-x" onclick="closeSh('sh-sell')">✕</button></div>
     <div class="sh-body">
-      <div class="fl">¿Qué llanta vendiste?</div>
-      <select class="fi" id="sl-tire" onchange="onSellChange()"></select>
+      <div class="fl">Tipo de servicio</div>
+      <select class="fi" id="sl-svctype" onchange="onSvcTypeChange()">
+        <option value="llanta">🛞 Venta de llanta</option>
+        <option value="parchada">🩹 Parchada de llanta</option>
+        <option value="enderezada">🔧 Enderezada de rin</option>
+        <option value="soldada">⚙️ Soldada de rin</option>
+        <option value="seccion">🛞 Sección</option>
+        <option value="otro">➕ Otro servicio</option>
+      </select>
+
+      <!-- Solo visible para venta de llanta -->
+      <div id="sl-tire-wrap">
+        <div class="fl">¿Qué llanta?</div>
+        <select class="fi" id="sl-tire" onchange="onSellChange()"></select>
+      </div>
+
+      <!-- Solo visible para servicios sin llanta del inventario -->
+      <div id="sl-desc-wrap" style="display:none">
+        <div class="fl">Descripción del servicio</div>
+        <input class="fi" id="sl-desc" type="text" placeholder="Ej: Parchada llanta trasera derecha">
+      </div>
+
       <div class="f2">
-        <div><div class="fl">¿Cuántas?</div><input class="fi" id="sl-qty" type="number" min="1" value="1" oninput="calcPrev()"></div>
-        <div><div class="fl">Precio unitario ($)</div><input class="fi" id="sl-price" type="number" step="0.01" placeholder="0.00" oninput="calcPrev()"></div>
+        <div id="sl-qty-wrap"><div class="fl">Cantidad</div><input class="fi" id="sl-qty" type="number" min="1" value="1" oninput="calcPrev()"></div>
+        <div><div class="fl">Precio ($)</div><input class="fi" id="sl-price" type="number" step="0.01" placeholder="0.00" oninput="calcPrev()"></div>
       </div>
       <div class="fl">Nombre del cliente</div>
       <input class="fi" id="sl-client" type="text" placeholder="Ej: Juan Pérez">
       <div class="fl">WhatsApp del cliente (para enviar comprobante)</div>
       <input class="fi" id="sl-phone" type="tel" placeholder="Ej: 4441234567">
-      <div class="prev" id="sell-prev"><div style="color:var(--sub);font-size:13px">Selecciona una llanta</div></div>
-      <button class="sb gold" id="sell-btn" onclick="doSell()">💸 Vender y Generar Comprobante</button>
+      <div class="prev" id="sell-prev"><div style="color:var(--sub);font-size:13px">Selecciona un servicio</div></div>
+      <button class="sb gold" id="sell-btn" onclick="doSell()">💸 Registrar y Generar Comprobante</button>
     </div>
   </div>
 </div>
@@ -749,7 +773,8 @@ async function renderHome() {
 
   const units=TIRES.reduce((s,t)=>s+t.stock,0);
   const invVal=TIRES.reduce((s,t)=>s+t.stock*t.price,0);
-  const sells=TXS.filter(t=>t.type==='sell'), buys=TXS.filter(t=>t.type==='buy');
+  const sells=TXS.filter(t=>t.svc_type!=='buy' && t.type!=='buy');
+  const buys=TXS.filter(t=>t.type==='buy');
   const revenue=sells.reduce((s,t)=>s+t.total,0), spent=buys.reduce((s,t)=>s+t.total,0);
   const profit=revenue-spent;
   const outStock=TIRES.filter(t=>t.stock===0), lowStock=TIRES.filter(t=>t.stock>0&&t.stock<=t.min_stock);
@@ -771,18 +796,93 @@ async function renderHome() {
     '<div class="empty"><div class="ei">📋</div><p>Sin operaciones aún</p></div>';
 }
 
+// ══════════════════════════════════════════
+// REPORTE DEL DÍA — para enviar al dueño
+// ══════════════════════════════════════════
+function reporteDia() {
+  const hoy = new Date();
+  const fechaStr = hoy.toLocaleDateString('es-MX',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
+
+  // Transacciones de hoy
+  const txHoy = TXS.filter(t => new Date(t.created_at).getTime() >= inicioHoy);
+  const ventasHoy = txHoy.filter(t => t.svc_type !== 'buy' && t.type !== 'buy');
+  const comprasHoy = txHoy.filter(t => t.type === 'buy');
+
+  const totalVentas = ventasHoy.reduce((s,t) => s+t.total, 0);
+  const totalCompras = comprasHoy.reduce((s,t) => s+t.total, 0);
+  const gananciaHoy = ventasHoy.reduce((s,t) => s + (t.total - (t.cost||0)*(t.qty||1)), 0);
+
+  // Desglose por tipo de servicio
+  const porTipo = {};
+  ventasHoy.forEach(t => {
+    const label = SVC_LABELS?.[t.svc_type] || t.svc_type || 'Venta';
+    if (!porTipo[label]) porTipo[label] = { qty: 0, total: 0 };
+    porTipo[label].qty++;
+    porTipo[label].total += t.total;
+  });
+
+  const desglose = Object.entries(porTipo)
+    .map(([lbl, v]) => `  ${lbl}: ${v.qty} × $${v.total.toLocaleString()}`)
+    .join('\n');
+
+  // Stock crítico
+  const agotadas = TIRES.filter(t => t.stock === 0);
+  const pocas    = TIRES.filter(t => t.stock > 0 && t.stock <= t.min_stock);
+  const stockAlert = agotadas.length || pocas.length
+    ? `\n⚠️ *STOCK*\n${agotadas.map(t=>`  🔴 Agotado: ${t.brand} ${t.model}`).join('\n')}${agotadas.length&&pocas.length?'\n':''}${pocas.map(t=>`  🟡 Poco: ${t.brand} ${t.model} (${t.stock} uds)`).join('\n')}`
+    : '\n✅ Stock sin alertas';
+
+  const msg =
+`🐾 *REPORTE DEL DÍA — PATITAS*
+📅 ${fechaStr}
+━━━━━━━━━━━━━━━━━━━
+💸 *VENTAS Y SERVICIOS HOY*
+${ventasHoy.length ? desglose : '  Sin operaciones hoy'}
+
+💰 *Total cobrado:* $${totalVentas.toLocaleString()}
+📈 *Ganancia estimada:* $${gananciaHoy.toLocaleString()}
+${totalCompras > 0 ? `📦 *Compras/gastos:* $${totalCompras.toLocaleString()}` : ''}
+━━━━━━━━━━━━━━━━━━━
+🛞 *INVENTARIO GENERAL*
+  Total modelos: ${TIRES.length}
+  Total piezas: ${TIRES.reduce((s,t)=>s+t.stock,0)} uds
+  Valor en stock: $${TIRES.reduce((s,t)=>s+t.stock*t.price,0).toLocaleString()}
+${stockAlert}
+━━━━━━━━━━━━━━━━━━━
+_Enviado desde Patitas Inventory_ 🐾`;
+
+  if (isNative()) {
+    window.Capacitor.Plugins.Share.share({
+      title: `Reporte del día — Patitas ${hoy.toLocaleDateString('es-MX',{day:'2-digit',month:'short'})}`,
+      text: msg,
+      dialogTitle: 'Enviar reporte al dueño'
+    }).catch(()=>{});
+  } else {
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+  }
+  toast('📊 Reporte listo','ok');
+}
+
+
 function txHTML(tx) {
   const d=new Date(tx.created_at);
   const ds=d.toLocaleDateString('es-MX',{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  const isVenta = tx.svc_type !== 'buy' && tx.type !== 'buy';
+  const svcIco = {llanta:'💸',parchada:'🩹',enderezada:'🔧',soldada:'⚙️',seccion:'🛞',otro:'➕',buy:'📦'};
+  const ico = svcIco[tx.svc_type] || svcIco[tx.type] || (isVenta?'💸':'📦');
+  const nombre = tx.desc || tx.tire_name || (isVenta?'Servicio':'Compra');
+  const qty = tx.qty||1;
   return `<div class="tx-r">
-    <div class="tx-ico ${tx.type}">${tx.type==='sell'?'💸':'📦'}</div>
-    <div class="tx-inf"><div class="tx-n">${tx.tire_name}</div><div class="tx-d">${ds} · ${tx.party||'—'}</div></div>
+    <div class="tx-ico ${isVenta?'s':'b'}">${ico}</div>
+    <div class="tx-inf"><div class="tx-n">${nombre}</div><div class="tx-d">${ds} · ${tx.party||'—'}</div></div>
     <div>
-      <div class="tx-a ${tx.type==='sell'?'in':'out'}">${tx.type==='sell'?'+':'-'}$${tx.total.toLocaleString()}</div>
-      <div class="tx-q">${tx.qty} und${tx.qty>1?'s':''}</div>
+      <div class="tx-a ${isVenta?'in':'out'}">${isVenta?'+':'-'}$${tx.total.toLocaleString()}</div>
+      <div class="tx-q">${qty} und${qty>1?'s':''}</div>
     </div>
   </div>`;
 }
+
 
 // ══════════════════════════════════════════
 // INVENTORY
@@ -942,21 +1042,55 @@ function fillSel(){
   const opts=TIRES.length?TIRES.map(t=>`<option value="${t.id}">${t.brand} ${t.model} (${t.size}) — ${t.stock} uds</option>`).join(''):'<option disabled>Sin llantas registradas</option>';
   document.getElementById('sl-tire').innerHTML=opts;
   document.getElementById('by-tire').innerHTML=opts;
-  onSellChange();
+  onSvcTypeChange();
 }
-function onSellChange(){const t=TIRES.find(x=>x.id===document.getElementById('sl-tire')?.value);if(t) document.getElementById('sl-price').value=t.price;calcPrev();}
-function calcPrev(){
-  const t=TIRES.find(x=>x.id===document.getElementById('sl-tire')?.value);
-  const qty=parseInt(document.getElementById('sl-qty')?.value)||0;
-  const price=parseFloat(document.getElementById('sl-price')?.value)||0;
-  const prev=document.getElementById('sell-prev');if(!prev) return;
-  if(!t){prev.innerHTML='<div style="color:var(--sub);font-size:13px">Selecciona una llanta</div>';return;}
-  const total=qty*price,profit=qty*(price-t.cost);
-  prev.innerHTML=`
-    <div class="prev-row"><span class="prev-lbl">Llanta</span><span class="prev-val" style="color:var(--text);font-size:12px">${t.brand} ${t.model}</span></div>
-    <div class="prev-row"><span class="prev-lbl">${qty} × $${price}</span><span class="prev-val" style="color:var(--gold)">$${total.toLocaleString()}</span></div>
-    <div class="prev-row"><span class="prev-lbl">Tu ganancia</span><span class="prev-val" style="color:${profit>=0?'var(--green)':'var(--red)'}">${profit>=0?'+':''}$${profit.toLocaleString()}</span></div>
-  `;
+
+const SVC_LABELS = {
+  llanta:'🛞 Venta de llanta', parchada:'🩹 Parchada', enderezada:'🔧 Enderezada de rin',
+  soldada:'⚙️ Soldada de rin', seccion:'🛞 Sección', otro:'➕ Servicio'
+};
+
+function onSvcTypeChange() {
+  const svc = document.getElementById('sl-svctype')?.value || 'llanta';
+  const isLlanta = svc === 'llanta';
+  document.getElementById('sl-tire-wrap').style.display  = isLlanta ? '' : 'none';
+  document.getElementById('sl-desc-wrap').style.display  = isLlanta ? 'none' : '';
+  document.getElementById('sl-qty-wrap').style.display   = isLlanta ? '' : 'none';
+  if (isLlanta) {
+    document.getElementById('sl-qty').value = 1;
+    onSellChange();
+  } else {
+    document.getElementById('sl-price').value = '';
+    calcPrev();
+  }
+}
+
+function onSellChange() {
+  const t = TIRES.find(x=>x.id===document.getElementById('sl-tire')?.value);
+  if(t) document.getElementById('sl-price').value = t.price;
+  calcPrev();
+}
+
+function calcPrev() {
+  const svc   = document.getElementById('sl-svctype')?.value || 'llanta';
+  const price = parseFloat(document.getElementById('sl-price')?.value) || 0;
+  const prev  = document.getElementById('sell-prev'); if(!prev) return;
+
+  if (svc === 'llanta') {
+    const t   = TIRES.find(x=>x.id===document.getElementById('sl-tire')?.value);
+    const qty = parseInt(document.getElementById('sl-qty')?.value) || 0;
+    if(!t){ prev.innerHTML='<div style="color:var(--sub);font-size:13px">Selecciona una llanta</div>'; return; }
+    const total=qty*price, profit=qty*(price-t.cost);
+    prev.innerHTML=`
+      <div class="prev-row"><span class="prev-lbl">Llanta</span><span class="prev-val" style="color:var(--text);font-size:12px">${t.brand} ${t.model}</span></div>
+      <div class="prev-row"><span class="prev-lbl">${qty} × $${price}</span><span class="prev-val" style="color:var(--gold)">$${total.toLocaleString()}</span></div>
+      <div class="prev-row"><span class="prev-lbl">Ganancia</span><span class="prev-val" style="color:${profit>=0?'var(--green)':'var(--red)'}">${profit>=0?'+':''}$${profit.toLocaleString()}</span></div>`;
+  } else {
+    if(!price){ prev.innerHTML='<div style="color:var(--sub);font-size:13px">Ingresa el precio</div>'; return; }
+    prev.innerHTML=`
+      <div class="prev-row"><span class="prev-lbl">Servicio</span><span class="prev-val" style="color:var(--text);font-size:12px">${SVC_LABELS[svc]||svc}</span></div>
+      <div class="prev-row"><span class="prev-lbl">Total</span><span class="prev-val" style="color:var(--gold)">$${price.toLocaleString()}</span></div>`;
+  }
 }
 
 // ══════════════════════════════════════════
@@ -978,25 +1112,50 @@ async function doAdd(){
 }
 
 async function doSell(){
-  const tid=document.getElementById('sl-tire').value;
-  const qty=+v('sl-qty'),price=+v('sl-price');
-  const client=v('sl-client'),phone=v('sl-phone');
-  const t=TIRES.find(x=>x.id===tid);
-  if(!t||!qty||qty<1){toast('Selecciona llanta y cantidad ❌','err');return;}
-  if(t.stock<qty){toast(`Solo hay ${t.stock} en stock ❌`,'err');return;}
+  const svc    = document.getElementById('sl-svctype').value;
+  const price  = +v('sl-price');
+  const client = v('sl-client'), phone = v('sl-phone');
+  if(!price||price<=0){ toast('Ingresa el precio ❌','err'); return; }
+
   bl('sell-btn',true);
   try{
-    const txId=uid('TX'),total=qty*(price||t.price),now=new Date();
-    await dbPut('tires',{...t,stock:t.stock-qty});
-    const tx={id:txId,type:'sell',tire_id:tid,tire_name:`${t.brand} ${t.model}`,qty,unit_price:price||t.price,total,party:client||'Cliente',phone:phone||'',size:t.size,type_tire:t.type,cost:t.cost,created_at:now.toISOString()};
-    await dbPut('transactions',tx);
-    await refresh();closeSh('sh-sell');
-    ['sl-client','sl-phone'].forEach(i=>document.getElementById(i).value='');
+    const txId=uid('TX'), now=new Date();
+    let tx, t=null;
+
+    if(svc === 'llanta'){
+      const tid = document.getElementById('sl-tire').value;
+      const qty = +v('sl-qty');
+      t = TIRES.find(x=>x.id===tid);
+      if(!t||!qty||qty<1){ toast('Selecciona llanta y cantidad ❌','err'); bl('sell-btn',false); return; }
+      if(t.stock<qty){ toast(`Solo hay ${t.stock} en stock ❌`,'err'); bl('sell-btn',false); return; }
+      const total = qty*(price||t.price);
+      await dbPut('tires',{...t, stock:t.stock-qty});
+      tx = {id:txId, svc_type:'llanta', tire_id:tid,
+            tire_name:`${t.brand} ${t.model}`, size:t.size, type_tire:t.type,
+            qty, unit_price:price||t.price, total,
+            party:client||'Cliente', phone:phone||'', cost:t.cost,
+            desc:`${t.brand} ${t.model} ${t.size}`,
+            created_at:now.toISOString()};
+    } else {
+      const desc = v('sl-desc') || SVC_LABELS[svc] || svc;
+      tx = {id:txId, svc_type:svc,
+            tire_id:null, tire_name:null, size:'', type_tire:'',
+            qty:1, unit_price:price, total:price, cost:0,
+            party:client||'Cliente', phone:phone||'',
+            desc, created_at:now.toISOString()};
+    }
+
+    await dbPut('transactions', tx);
+    await refresh();
+    closeSh('sh-sell');
+    ['sl-client','sl-phone','sl-desc','sl-price'].forEach(i=>{ const el=document.getElementById(i); if(el) el.value=''; });
     document.getElementById('sl-qty').value=1;
-    renderInv();renderHome();
-    showReceipt(tx,t);
-    toast(`💸 Venta registrada — $${total.toLocaleString()}`,'gold');
-  }catch(e){toast('Error: '+e.message,'err');}
+    document.getElementById('sl-svctype').value='llanta';
+    onSvcTypeChange();
+    renderInv(); renderHome();
+    showReceipt(tx, t || {brand:'', model:tx.desc, size:'', type:SVC_LABELS[svc]||svc});
+    toast(`💸 Registrado — $${tx.total.toLocaleString()}`,'gold');
+  }catch(e){ toast('Error: '+e.message,'err'); }
   bl('sell-btn',false);
 }
 
@@ -1030,32 +1189,51 @@ async function doDel(id){
 // ══════════════════════════════════════════
 function showReceipt(tx, tire) {
   currentReceipt={tx,tire};
-  pdfBlob=null; pdfFileName='';
-  // Resetear botones
-  const genBtn=document.getElementById('gen-pdf-btn');
-  if(genBtn){genBtn.innerHTML='📄 Generar PDF del Comprobante';genBtn.disabled=false;}
-  const opts=document.getElementById('share-options');
-  if(opts) opts.style.display='none';
   const fv=new Date(tx.created_at),fg=new Date(fv.getTime()+15*864e5);
   const fd=d=>d.toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
   const folio=tx.id.slice(-6).toUpperCase();
+  const esLlanta = tx.svc_type === 'llanta';
+  const svcIconos={llanta:'🛞',parchada:'🩹',enderezada:'🔧',soldada:'⚙️',seccion:'🛞',otro:'🔩'};
+  const icono = svcIconos[tx.svc_type]||'🔩';
+
+  const secProducto = esLlanta ? `
+    <div style="font-size:10px;font-weight:800;color:#8899bb;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;padding-bottom:5px;border-bottom:1px solid #edf0f7">🛞 Producto</div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:#1a2540"><span style="color:#8899bb">Llanta</span><span style="font-weight:700">${tire.brand} ${tire.model}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:#1a2540"><span style="color:#8899bb">Medida</span><span style="font-weight:700">${tire.size}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:#1a2540"><span style="color:#8899bb">Tipo</span><span style="font-weight:700">${tire.type||'—'}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:#1a2540"><span style="color:#8899bb">Cantidad</span><span style="font-weight:700">${tx.qty} pieza${tx.qty>1?'s':''}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:#1a2540"><span style="color:#8899bb">Precio unitario</span><span style="font-weight:700">$${tx.unit_price.toLocaleString()}</span></div>
+  ` : `
+    <div style="font-size:10px;font-weight:800;color:#8899bb;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;padding-bottom:5px;border-bottom:1px solid #edf0f7">${icono} Servicio</div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:#1a2540"><span style="color:#8899bb">Descripción</span><span style="font-weight:700;text-align:right;max-width:60%">${tx.desc}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:#1a2540"><span style="color:#8899bb">Precio</span><span style="font-weight:700">$${tx.unit_price.toLocaleString()}</span></div>
+  `;
+
+  const secGarantia = esLlanta ? `
+    <div style="background:linear-gradient(135deg,#fff8ee,#fff3e0);border:1.5px solid #f5a623;border-radius:11px;padding:13px 15px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:900;color:#b06000;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px">🛡️ Garantía — 15 Días</div>
+      <div style="font-size:12px;color:#7a4400;line-height:1.6">
+        Esta llanta tiene <strong>garantía de 15 días</strong> a partir de la fecha de compra.<br>
+        📅 <strong>Válida hasta: ${fd(fg)}</strong><br><br>
+        Cubre defectos de fabricación. No aplica pinchazos, impactos o desgaste normal.<br>
+        <strong>Presenta este comprobante para hacer válida tu garantía.</strong>
+      </div>
+    </div>
+  ` : `
+    <div style="background:#f0f8ff;border:1px solid #c5ddf4;border-radius:11px;padding:12px 15px;margin-bottom:12px;font-size:12px;color:#1a3555;line-height:1.7">
+      Servicio realizado en <strong>Vulcanizadora Patitas</strong>.<br>
+      Presenta este comprobante ante cualquier inconveniente.<br>
+      📅 Fecha: <strong>${fd(fv)}</strong>
+    </div>
+  `;
 
   document.getElementById('rcpt-preview').innerHTML=`
     <div class="rcpt-outer">
-      <!-- HEADER dorado con logo -->
-      <div style="background:linear-gradient(135deg,#0d1b3e 0%,#1a3060 100%);padding:20px 18px 16px;text-align:center">
+      <div style="background:linear-gradient(135deg,#0d1b3e,#1a3060);padding:20px 18px 16px;text-align:center">
         <div style="display:flex;justify-content:center;margin-bottom:10px">
           <svg width="52" height="52" viewBox="0 0 80 80" fill="none">
             <circle cx="40" cy="40" r="36" fill="#1c2638" stroke="#f5a623" stroke-width="2.5"/>
             <circle cx="40" cy="40" r="28" fill="#141b27" stroke="#f5a623" stroke-width="1.5"/>
-            <path d="M40 4 L40 12" stroke="#f5a623" stroke-width="2" stroke-linecap="round"/>
-            <path d="M40 68 L40 76" stroke="#f5a623" stroke-width="2" stroke-linecap="round"/>
-            <path d="M4 40 L12 40" stroke="#f5a623" stroke-width="2" stroke-linecap="round"/>
-            <path d="M68 40 L76 40" stroke="#f5a623" stroke-width="2" stroke-linecap="round"/>
-            <path d="M11.7 11.7 L17.8 17.8" stroke="#f5a623" stroke-width="1.5" stroke-linecap="round"/>
-            <path d="M62.2 62.2 L68.3 68.3" stroke="#f5a623" stroke-width="1.5" stroke-linecap="round"/>
-            <path d="M68.3 11.7 L62.2 17.8" stroke="#f5a623" stroke-width="1.5" stroke-linecap="round"/>
-            <path d="M17.8 62.2 L11.7 68.3" stroke="#f5a623" stroke-width="1.5" stroke-linecap="round"/>
             <circle cx="40" cy="40" r="18" fill="#1c2638"/>
             <ellipse cx="40" cy="43" rx="7" ry="6" fill="#f5a623"/>
             <ellipse cx="33" cy="35.5" rx="3.2" ry="3.8" fill="#f5a623" transform="rotate(-20 33 35.5)"/>
@@ -1064,46 +1242,26 @@ function showReceipt(tx, tire) {
             <ellipse cx="47" cy="35.5" rx="3.2" ry="3.8" fill="#f5a623" transform="rotate(20 47 35.5)"/>
           </svg>
         </div>
-        <div style="font-family:'Exo 2',sans-serif;font-size:18px;font-weight:900;color:#f5a623;letter-spacing:.5px">Vulcanizadora Patitas</div>
-        <div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:3px;letter-spacing:1px">COMPROBANTE DE VENTA</div>
+        <div style="font-family:'Exo 2',sans-serif;font-size:18px;font-weight:900;color:#f5a623">Vulcanizadora Patitas</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:3px;letter-spacing:1px">COMPROBANTE DE ${esLlanta?'VENTA':'SERVICIO'}</div>
         <div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:3px">📍 Av del Sauce 107, Saucito, SLP 78110</div>
       </div>
-      <!-- FOLIO -->
       <div style="background:#fff;padding:14px 18px;border-bottom:1px solid #edf0f7;text-align:center">
         <div style="font-size:10px;color:#8899bb;letter-spacing:1px;text-transform:uppercase">Folio</div>
         <div style="font-family:'Exo 2',sans-serif;font-size:24px;font-weight:900;color:#0d1b3e">#${folio}</div>
         <div style="font-size:11px;color:#8899bb;margin-top:2px">${fd(fv)}</div>
       </div>
-      <!-- CUERPO -->
       <div style="background:#fff;padding:16px 18px">
-        <!-- Cliente -->
         <div style="font-size:10px;font-weight:800;color:#8899bb;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid #edf0f7">👤 Cliente</div>
         <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:#1a2540"><span style="color:#8899bb">Nombre</span><span style="font-weight:700">${tx.party||'Cliente'}</span></div>
         ${tx.phone?`<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:#1a2540"><span style="color:#8899bb">Teléfono</span><span style="font-weight:700">${tx.phone}</span></div>`:''}
-        <!-- Producto -->
-        <div style="font-size:10px;font-weight:800;color:#8899bb;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;padding-bottom:5px;border-bottom:1px solid #edf0f7">🛞 Producto</div>
-        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:#1a2540"><span style="color:#8899bb">Llanta</span><span style="font-weight:700">${tire.brand} ${tire.model}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:#1a2540"><span style="color:#8899bb">Medida</span><span style="font-weight:700">${tire.size}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:#1a2540"><span style="color:#8899bb">Tipo</span><span style="font-weight:700">${tire.type||'—'}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:#1a2540"><span style="color:#8899bb">Cantidad</span><span style="font-weight:700">${tx.qty} pieza${tx.qty>1?'s':''}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:#1a2540"><span style="color:#8899bb">Precio unitario</span><span style="font-weight:700">$${tx.unit_price.toLocaleString()}</span></div>
-        <!-- Total -->
+        ${secProducto}
         <div style="background:#f5f7ff;border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;margin:12px 0">
           <span style="font-size:12px;color:#5a7299;font-weight:700">TOTAL PAGADO</span>
           <span style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:#0d1b3e">$${tx.total.toLocaleString()}</span>
         </div>
-        <!-- Garantía -->
-        <div style="background:linear-gradient(135deg,#fff8ee,#fff3e0);border:1.5px solid #f5a623;border-radius:11px;padding:13px 15px;margin-bottom:12px">
-          <div style="font-size:11px;font-weight:900;color:#b06000;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px">🛡️ Garantía — 15 Días</div>
-          <div style="font-size:12px;color:#7a4400;line-height:1.6">
-            Esta llanta tiene <strong>garantía de 15 días</strong> a partir de la fecha de compra.<br>
-            📅 <strong>Válida hasta: ${fd(fg)}</strong><br><br>
-            Cubre defectos de fabricación. No aplica para pinchazos, impactos o desgaste normal.<br>
-            <strong>Presenta este comprobante para hacer válida tu garantía.</strong>
-          </div>
-        </div>
+        ${secGarantia}
       </div>
-      <!-- FOOTER -->
       <div style="background:#f8faff;padding:12px 18px;text-align:center;border-top:1px solid #edf0f7">
         <div style="font-size:11px;color:#8899bb">Gracias por su preferencia 🙏</div>
         <div style="font-size:10px;color:#aab5cc;margin-top:3px">Vulcanizadora Patitas · Av del Sauce 107, Saucito, SLP</div>
@@ -1112,6 +1270,7 @@ function showReceipt(tx, tire) {
     </div>
   `;
   openSh('sh-rcpt');
+}
 }
 
 // ══════════════════════════════════════════
@@ -1126,22 +1285,35 @@ function msgComprobante(tx, tire) {
   const fg = new Date(fv.getTime() + 15*864e5);
   const fd = d => d.toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
   const folio = tx.id.slice(-6).toUpperCase();
+  const isLlanta = tx.svc_type === 'llanta';
+  const svcLabel = SVC_LABELS?.[tx.svc_type] || tx.svc_type || 'Servicio';
+
+  const detalleLineas = isLlanta
+    ? `🛞 *Llanta:* ${tire.brand} ${tire.model} ${tire.size}
+🔢 *Cantidad:* ${tx.qty} pieza${tx.qty>1?'s':''}`
+    : `🔧 *Servicio:* ${svcLabel}${tx.desc && tx.desc !== svcLabel ? '\n📝 ' + tx.desc : ''}`;
+
+  const garantiaLineas = isLlanta
+    ? `━━━━━━━━━━━━━━━━━━━
+🛡️ *GARANTÍA 15 DÍAS*
+✅ Válida hasta: *${fd(fg)}*
+Cubre defectos de fabricación. No aplica pinchazos ni impactos.
+Presenta este comprobante para hacer válida tu garantía.`
+    : `━━━━━━━━━━━━━━━━━━━
+✅ *Servicio completado por Vulcanizadora Patitas*
+Presenta este comprobante si requieres atención.`;
+
   return { folio, fd, fv, fg,
     texto: `🐾 *VULCANIZADORA PATITAS*
 📍 Av del Sauce 107, Saucito, SLP 78110
 ━━━━━━━━━━━━━━━━━━━
-🧾 *COMPROBANTE DE VENTA*
+🧾 *${isLlanta ? 'COMPROBANTE DE VENTA' : 'COMPROBANTE DE SERVICIO'}*
 📋 Folio: #${folio}  |  📅 ${fd(fv)}
 ━━━━━━━━━━━━━━━━━━━
 👤 *Cliente:* ${tx.party||'Cliente'}${tx.phone?'\n📱 Tel: '+tx.phone:''}
-🛞 *Llanta:* ${tire.brand} ${tire.model} ${tire.size}
-🔢 *Cantidad:* ${tx.qty} pieza${tx.qty>1?'s':''}
+${detalleLineas}
 💰 *TOTAL: $${tx.total.toLocaleString()}*
-━━━━━━━━━━━━━━━━━━━
-🛡️ *GARANTÍA 15 DÍAS*
-✅ Válida hasta: *${fd(fg)}*
-Cubre defectos de fabricación. No aplica pinchazos ni impactos.
-Presenta este comprobante para hacer válida tu garantía.
+${garantiaLineas}
 ━━━━━━━━━━━━━━━━━━━
 _¡Gracias por su preferencia!_ 🙏🐾`
   };
@@ -1157,6 +1329,32 @@ function buildHtmlComprobante(tx, tire) {
   const fv=new Date(tx.created_at), fg=new Date(fv.getTime()+15*864e5);
   const fd=d=>d.toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
   const folio=tx.id.slice(-6).toUpperCase();
+  const esLlanta = tx.svc_type === 'llanta';
+  const svcIconos={llanta:'🛞',parchada:'🩹',enderezada:'🔧',soldada:'⚙️',seccion:'🛞',otro:'🔩'};
+  const icono = svcIconos[tx.svc_type]||'🔩';
+
+  const secProducto = esLlanta
+    ? `<div class="s">🛞 Producto</div>
+<div class="r"><span>Llanta</span><span>${tire.brand} ${tire.model}</span></div>
+<div class="r"><span>Medida</span><span>${tire.size}</span></div>
+<div class="r"><span>Tipo</span><span>${tire.type||'—'}</span></div>
+<div class="r"><span>Cantidad</span><span>${tx.qty} pieza${tx.qty>1?'s':''}</span></div>
+<div class="r"><span>Precio unitario</span><span>$${tx.unit_price.toLocaleString()}</span></div>`
+    : `<div class="s">${icono} Servicio</div>
+<div class="r"><span>Descripción</span><span style="text-align:right;max-width:60%">${tx.desc}</span></div>
+<div class="r"><span>Precio</span><span>$${tx.unit_price.toLocaleString()}</span></div>`;
+
+  const secGarantia = esLlanta
+    ? `<div class="g"><div class="gt">🛡️ Garantía — 15 Días</div>
+<div class="gb">Esta llanta tiene <strong>garantía de 15 días</strong> a partir de la fecha de compra.<br>
+📅 <strong>Válida hasta: ${fd(fg)}</strong><br><br>
+Cubre defectos de fabricación. No aplica pinchazos, impactos ni desgaste normal.<br>
+<strong>Presenta este comprobante para hacer válida tu garantía.</strong></div></div>`
+    : `<div style="background:#f0f8ff;border:1px solid #c5ddf4;border-radius:10px;padding:12px;margin-bottom:6px;font-size:12px;color:#1a3555;line-height:1.7">
+Servicio realizado en <strong>Vulcanizadora Patitas</strong>.<br>
+Presenta este comprobante ante cualquier inconveniente.<br>
+📅 Fecha: <strong>${fd(fv)}</strong></div>`;
+
   return { folio, html:`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Comprobante Patitas #${folio}</title>
@@ -1189,7 +1387,7 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;padding:16px;color:#1a2540}
 <div class="c">
 <div class="h"><div style="font-size:30px">🐾</div>
 <div class="hn">Vulcanizadora Patitas</div>
-<div class="hs">Comprobante de Venta</div>
+<div class="hs">COMPROBANTE DE ${esLlanta?'VENTA':'SERVICIO'}</div>
 <div class="ha">📍 Av del Sauce 107, Saucito, SLP 78110</div></div>
 <div class="fo">
 <div style="font-size:10px;color:#8899bb;text-transform:uppercase;letter-spacing:1px">Folio</div>
@@ -1198,18 +1396,9 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;padding:16px;color:#1a2540}
 <div class="s">👤 Cliente</div>
 <div class="r"><span>Nombre</span><span>${tx.party||'Cliente'}</span></div>
 ${tx.phone ? '<div class="r"><span>Teléfono</span><span>'+tx.phone+'</span></div>' : ''}
-<div class="s">🛞 Producto</div>
-<div class="r"><span>Llanta</span><span>${tire.brand} ${tire.model}</span></div>
-<div class="r"><span>Medida</span><span>${tire.size}</span></div>
-<div class="r"><span>Tipo</span><span>${tire.type||'—'}</span></div>
-<div class="r"><span>Cantidad</span><span>${tx.qty} pieza${tx.qty>1?'s':''}</span></div>
-<div class="r"><span>Precio unitario</span><span>$${tx.unit_price.toLocaleString()}</span></div>
+${secProducto}
 <div class="tot"><span>TOTAL PAGADO</span><span>$${tx.total.toLocaleString()}</span></div>
-<div class="g"><div class="gt">🛡️ Garantía — 15 Días</div>
-<div class="gb">Esta llanta tiene <strong>garantía de 15 días</strong> a partir de la fecha de compra.<br>
-📅 <strong>Válida hasta: ${fd(fg)}</strong><br><br>
-Cubre defectos de fabricación. No aplica pinchazos, impactos ni desgaste normal.<br>
-<strong>Presenta este comprobante para hacer válida tu garantía.</strong></div></div>
+${secGarantia}
 </div>
 <div class="ft"><p>¡Gracias por su preferencia! 🙏</p><p style="margin-top:3px">Vulcanizadora Patitas · Folio: #${folio}</p></div>
 </div>
